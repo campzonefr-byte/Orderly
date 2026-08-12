@@ -1,82 +1,59 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { RouteGuard } from "@/components/auth/route-guard";
 import { useStores } from "@/lib/stores-context";
-import { useOrders } from "@/lib/orders-context";
 import { useAuth } from "@/lib/auth-context";
-import { OrderStatusBadge } from "@/components/orders/status-badge";
-import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
-  Package, TrendingUp, AlertTriangle, CheckCircle2,
-  Clock, XCircle, ArrowRight, Store as StoreIcon,
+  AlertTriangle, Calendar, MessageSquare, Package,
+  ArrowRight, TrendingUp,
 } from "lucide-react";
-import { OrderStatus } from "@/types/order";
+import {
+  PeriodFilter,
+  getPeriodRange,
+  type Period,
+} from "@/components/stats/period-filter";
+import {
+  KpiCard,
+  TimelineChart,
+  StatusBars,
+  CarrierTable,
+  TopProducts,
+  money,
+} from "@/components/dashboard/dashboard-widgets";
 
-const STATUS_ORDER: OrderStatus[] = [
-  "NOUVEAU", "CONFIRMATION_EN_COURS", "CONFIRME", "EN_PREPARATION",
-  "A_EXPEDIER", "AU_DEPOT_LIVREUR", "EN_COURS_DE_LIVRAISON", "LIVRE", "PAYE", "RETOUR",
-  "RETOUR_DEPOT", "RETOUR_RECU", "ANNULE", "A_VERIFIER",
-];
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 
-function StatCard({ label, value, sub, icon: Icon, color }: {
-  label: string; value: string | number; sub?: string;
-  icon: React.ElementType; color: string;
-}) {
-  return (
-    <div className="rounded-lg border border-border bg-surface p-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs text-muted">{label}</p>
-          <p className="mt-1.5 text-2xl font-bold">{value}</p>
-          {sub && <p className="mt-0.5 text-xs text-muted">{sub}</p>}
-        </div>
-        <div className={cn("rounded-lg p-2.5", color)}>
-          <Icon className="h-4 w-4" />
-        </div>
-      </div>
-    </div>
-  );
+function getToken() {
+  return window.localStorage.getItem("orderly_token");
 }
 
-function StatusBar({ status, count, total }: { status: OrderStatus; count: number; total: number }) {
-  const pct = total > 0 ? (count / total) * 100 : 0;
-  const COLOR: Partial<Record<OrderStatus, string>> = {
-    NOUVEAU: "bg-status-new",
-    CONFIRMATION_EN_COURS: "bg-status-processing",
-    CONFIRME: "bg-status-new",
-    EN_PREPARATION: "bg-status-processing",
-    A_EXPEDIER: "bg-status-shipped",
-    EN_COURS_DE_LIVRAISON: "bg-status-shipped",
-    LIVRE: "bg-status-delivered",
-    PAYE: "bg-status-delivered",
-    RETOUR: "bg-status-refunded",
-    RETOUR_DEPOT: "bg-status-refunded",
-    RETOUR_RECU: "bg-status-refunded",
-    ANNULE: "bg-status-cancelled",
+interface DashboardData {
+  kpis: any;
+  timeline: any[];
+  statusCounts: Record<string, number>;
+  topProducts: any[];
+  carriers: any[];
+  storeStats: any[];
+  alerts: {
+    lowStock: number;
+    scheduledSoon: number;
+    openReclamations: number;
+    toVerify: number;
   };
-
-  return (
-    <div className="flex items-center gap-3">
-      <div className="w-32 shrink-0"><OrderStatusBadge status={status} /></div>
-      <div className="flex-1">
-        <div className="h-2 w-full rounded-full bg-surface-sunken">
-          <div className={cn("h-2 rounded-full transition-all", COLOR[status] ?? "bg-muted")} style={{ width: `${pct}%` }} />
-        </div>
-      </div>
-      <span className="w-8 text-right text-xs font-medium text-muted">{count}</span>
-    </div>
-  );
 }
 
 function OverviewContent() {
-  const { orders } = useOrders();
+  const router = useRouter();
   const { canAccessStore } = useAuth();
   const { stores } = useStores();
-  const router = useRouter();
   const [selectedStoreIds, setSelectedStoreIds] = useState<string[]>([]);
+  const [period, setPeriod] = useState<Period>(getPeriodRange("30d"));
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const accessibleStores = stores.filter((s) => canAccessStore(s.id));
 
@@ -86,35 +63,67 @@ function OverviewContent() {
     }
   }, [stores]);
 
-  const visibleOrders = useMemo(
-    () => orders.filter((o) => selectedStoreIds.includes(o.storeId)),
-    [orders, selectedStoreIds]
-  );
+  const fetchData = useCallback(async () => {
+    if (selectedStoreIds.length === 0) return;
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (period.from) params.set("from", period.from.toISOString());
+      if (period.to) params.set("to", period.to.toISOString());
+      params.set("storeIds", selectedStoreIds.join(","));
 
-  const totalRevenue = visibleOrders
-    .filter((o) => o.financialStatus === "PAID" || o.financialStatus === "PARTIALLY_REFUNDED")
-    .reduce((s, o) => s + o.total - o.totalRefunded, 0);
-
-  const totalRefunded = visibleOrders.reduce((s, o) => s + o.totalRefunded, 0);
-
-  const statusCounts = useMemo(() => {
-    const map: Partial<Record<OrderStatus, number>> = {};
-    for (const o of visibleOrders) {
-      map[o.orderStatus] = (map[o.orderStatus] ?? 0) + 1;
+      const res = await fetch(`${API}/orders/stats/dashboard?${params}`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      setData(await res.json());
+    } catch {
+      setData(null);
+    } finally {
+      setLoading(false);
     }
-    return map;
-  }, [visibleOrders]);
+  }, [period, selectedStoreIds]);
 
-  const recentOrders = useMemo(
-    () => [...visibleOrders]
-      .sort((a, b) => new Date(b.sourceCreatedAt).getTime() - new Date(a.sourceCreatedAt).getTime())
-      .slice(0, 8),
-    [visibleOrders]
-  );
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-  const needsAttention = visibleOrders.filter(
-    (o) => o.orderStatus === "RETOUR" || o.orderStatus === "RETOUR_DEPOT" || o.financialStatus === "PARTIALLY_REFUNDED"
-  ).length;
+  const k = data?.kpis;
+  const alerts = data?.alerts;
+
+  const alertItems = [
+    {
+      show: (alerts?.toVerify ?? 0) > 0,
+      count: alerts?.toVerify ?? 0,
+      label: "commandes a verifier",
+      icon: AlertTriangle,
+      href: "/confirmation",
+      tone: "bg-status-cancelled-bg text-status-cancelled",
+    },
+    {
+      show: (alerts?.openReclamations ?? 0) > 0,
+      count: alerts?.openReclamations ?? 0,
+      label: "reclamations ouvertes",
+      icon: MessageSquare,
+      href: "/reclamation",
+      tone: "bg-status-cancelled-bg text-status-cancelled",
+    },
+    {
+      show: (alerts?.scheduledSoon ?? 0) > 0,
+      count: alerts?.scheduledSoon ?? 0,
+      label: "livraisons programmees",
+      icon: Calendar,
+      href: "/confirmation",
+      tone: "bg-primary-soft text-primary",
+    },
+    {
+      show: (alerts?.lowStock ?? 0) > 0,
+      count: alerts?.lowStock ?? 0,
+      label: "produits en stock bas",
+      icon: Package,
+      href: "/products",
+      tone: "bg-status-processing-bg text-status-processing",
+    },
+  ].filter((a) => a.show);
 
   return (
     <div className="flex h-screen bg-background">
@@ -125,134 +134,179 @@ function OverviewContent() {
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center border-b border-border bg-surface px-5">
+        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-5">
           <h1 className="text-base font-semibold">Vue d'ensemble</h1>
         </header>
 
+        <div className="border-b border-border bg-surface px-5 py-3">
+          <PeriodFilter period={period} onChange={setPeriod} />
+        </div>
+
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <StatCard
-              label="Total commandes"
-              value={visibleOrders.length.toLocaleString()}
-              sub="tous les magasins"
-              icon={Package}
-              color="bg-primary-soft text-primary"
-            />
-            <StatCard
-              label="Chiffre d'affaires"
-              value={totalRevenue.toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-              sub="payé, moins remboursements"
-              icon={TrendingUp}
-              color="bg-status-delivered-bg text-status-delivered"
-            />
-            <StatCard
-              label="Livrés"
-              value={(statusCounts["LIVRE"] ?? 0) + (statusCounts["PAYE"] ?? 0)}
-              sub={`${visibleOrders.length > 0 ? Math.round((((statusCounts["LIVRE"] ?? 0) + (statusCounts["PAYE"] ?? 0)) / visibleOrders.length) * 100) : 0}% du total`}
-              icon={CheckCircle2}
-              color="bg-status-delivered-bg text-status-delivered"
-            />
-            <StatCard
-              label="Attention requise"
-              value={needsAttention}
-              sub="retours, remboursements partiels"
-              icon={AlertTriangle}
-              color="bg-status-processing-bg text-status-processing"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <div className="rounded-lg border border-border bg-surface p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold">Commandes par statut</h2>
-                <button onClick={() => router.push("/confirmation")} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                  Voir tout <ArrowRight className="h-3 w-3" />
-                </button>
-              </div>
-              <div className="space-y-2.5">
-                {STATUS_ORDER.filter((s) => (statusCounts[s] ?? 0) > 0).map((s) => (
-                  <StatusBar key={s} status={s} count={statusCounts[s] ?? 0} total={visibleOrders.length} />
-                ))}
-                {visibleOrders.length === 0 && <p className="text-xs text-muted">Aucune commande.</p>}
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-border bg-surface p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold">Commandes par magasin</h2>
-                <button onClick={() => router.push("/stores")} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                  Voir tout <ArrowRight className="h-3 w-3" />
-                </button>
-              </div>
-              <div className="space-y-3">
-                {accessibleStores.filter((s) => selectedStoreIds.includes(s.id)).map((store) => {
-                  const count = visibleOrders.filter((o) => o.storeId === store.id).length;
-                  const pct = visibleOrders.length > 0 ? (count / visibleOrders.length) * 100 : 0;
-                  return (
-                    <div key={store.id} className="flex items-center gap-3">
-                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-surface-sunken">
-                        <StoreIcon className="h-3.5 w-3.5 text-muted" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="truncate text-xs font-medium">{store.name}</span>
-                          <span className="ml-2 shrink-0 text-xs text-muted">{count}</span>
+          {loading && !data ? (
+            <p className="py-24 text-center text-sm text-muted">Chargement...</p>
+          ) : !data ? (
+            <p className="py-24 text-center text-sm text-muted">Aucune donnee</p>
+          ) : (
+            <>
+              {/* Alerts */}
+              {alertItems.length > 0 && (
+                <div className="grid grid-cols-4 gap-3">
+                  {alertItems.map((a) => {
+                    const Icon = a.icon;
+                    return (
+                      <button
+                        key={a.label}
+                        onClick={() => router.push(a.href)}
+                        className={cn(
+                          "flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-opacity hover:opacity-80",
+                          a.tone
+                        )}
+                      >
+                        <Icon className="h-5 w-5 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-lg font-bold leading-none">{a.count}</p>
+                          <p className="mt-0.5 text-[11px] leading-tight">{a.label}</p>
                         </div>
-                        <div className="h-1.5 w-full rounded-full bg-surface-sunken">
-                          <div className="h-1.5 rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+                        <ArrowRight className="ml-auto h-3.5 w-3.5 shrink-0 opacity-60" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
-          <div className="rounded-lg border border-border bg-surface">
-            <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
-              <h2 className="text-sm font-semibold">Commandes récentes</h2>
-              <button onClick={() => router.push("/confirmation")} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                Voir tout <ArrowRight className="h-3 w-3" />
-              </button>
-            </div>
-            <div className="divide-y divide-border">
-              {recentOrders.map((order) => (
-                <div key={order.id} onClick={() => router.push("/confirmation")} className="flex cursor-pointer items-center justify-between px-5 py-3 hover:bg-surface-sunken transition-colors">
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-sm font-medium">{order.orderNumber}</span>
-                    <span className="text-xs text-muted">{order.customerName}</span>
-                    <span className="hidden text-xs text-muted-light sm:inline">{order.storeName}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <OrderStatusBadge status={order.orderStatus} />
-                    <span className="font-mono text-sm font-medium">{order.total} {order.currency}</span>
+              {/* Revenue row */}
+              <div className="grid grid-cols-4 gap-3">
+                <KpiCard
+                  label="CA encaisse"
+                  value={money(k.revenue)}
+                  suffix=" TND"
+                  sub={`${k.paid} commandes payees`}
+                  tone="green"
+                />
+                <KpiCard
+                  label="En attente d'encaissement"
+                  value={money(k.pendingRevenue)}
+                  suffix=" TND"
+                  sub="livrees non payees"
+                  tone="orange"
+                />
+                <KpiCard
+                  label="CA potentiel"
+                  value={money(k.potentialRevenue)}
+                  suffix=" TND"
+                  sub="commandes en cours"
+                  tone="blue"
+                />
+                <KpiCard
+                  label="Panier moyen"
+                  value={money(k.avgBasket)}
+                  suffix=" TND"
+                  sub="sur commandes payees"
+                  tone="purple"
+                />
+              </div>
+
+              {/* Rates row */}
+              <div className="grid grid-cols-6 gap-3">
+                <KpiCard label="Total commandes" value={k.total} tone="gray" />
+                <KpiCard label="En attente" value={k.pending} tone="orange" />
+                <KpiCard label="En cours" value={k.inProgress} tone="blue" />
+                <KpiCard
+                  label="Taux confirmation"
+                  value={k.confirmationRate}
+                  suffix="%"
+                  sub={`${k.confirmed} confirmees`}
+                  tone="green"
+                />
+                <KpiCard
+                  label="Taux livraison"
+                  value={k.deliveryRate}
+                  suffix="%"
+                  sub={`${k.delivered} livrees`}
+                  tone="green"
+                />
+                <KpiCard
+                  label="Taux retour"
+                  value={k.returnRate}
+                  suffix="%"
+                  sub={`${k.returned} retours`}
+                  tone="red"
+                />
+              </div>
+
+              {/* Timeline */}
+              <div className="rounded-xl border border-border bg-surface p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold">
+                    <TrendingUp className="h-4 w-4 text-muted" />
+                    Evolution des commandes
+                  </h2>
+                  <div className="flex items-center gap-3 text-[11px] text-muted">
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-primary-soft" /> Total
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-status-delivered" /> Livrees
+                    </span>
                   </div>
                 </div>
-              ))}
-              {recentOrders.length === 0 && (
-                <div className="px-5 py-8 text-center text-xs text-muted">Aucune commande.</div>
-              )}
-            </div>
-          </div>
+                <TimelineChart data={data.timeline} />
+              </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="rounded-lg border border-border bg-surface p-4 text-center">
-              <Clock className="mx-auto h-5 w-5 text-status-processing" />
-              <p className="mt-2 text-xl font-bold">{(statusCounts["NOUVEAU"] ?? 0) + (statusCounts["CONFIRMATION_EN_COURS"] ?? 0)}</p>
-              <p className="text-xs text-muted">En attente de confirmation</p>
-            </div>
-            <div className="rounded-lg border border-border bg-surface p-4 text-center">
-              <XCircle className="mx-auto h-5 w-5 text-status-cancelled" />
-              <p className="mt-2 text-xl font-bold">{statusCounts["ANNULE"] ?? 0}</p>
-              <p className="text-xs text-muted">Annulées</p>
-            </div>
-            <div className="rounded-lg border border-border bg-surface p-4 text-center">
-              <TrendingUp className="mx-auto h-5 w-5 text-status-refunded" />
-              <p className="mt-2 text-xl font-bold">{totalRefunded.toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
-              <p className="text-xs text-muted">Total remboursé</p>
-            </div>
-          </div>
+              {/* Two columns */}
+              <div className="grid grid-cols-2 gap-5">
+                <div className="rounded-xl border border-border bg-surface p-5">
+                  <h2 className="mb-4 text-sm font-semibold">Repartition par statut</h2>
+                  <StatusBars counts={data.statusCounts} total={k.total} />
+                </div>
+
+                <div className="rounded-xl border border-border bg-surface p-5">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-sm font-semibold">Performance livreurs</h2>
+                    <span className="text-[10px] text-muted">taux · cmd · CA</span>
+                  </div>
+                  <CarrierTable carriers={data.carriers} />
+                </div>
+              </div>
+
+              {/* Products + stores */}
+              <div className="grid grid-cols-3 gap-5">
+                <div className="col-span-2 rounded-xl border border-border bg-surface p-5">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-sm font-semibold">Top produits</h2>
+                    <button
+                      onClick={() => router.push("/products")}
+                      className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                    >
+                      Voir tout <ArrowRight className="h-3 w-3" />
+                    </button>
+                  </div>
+                  <TopProducts products={data.topProducts} />
+                </div>
+
+                <div className="rounded-xl border border-border bg-surface p-5">
+                  <h2 className="mb-4 text-sm font-semibold">Par magasin</h2>
+                  <div className="space-y-3">
+                    {data.storeStats.map((s) => (
+                      <div key={s.name}>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="truncate font-medium">{s.name}</span>
+                          <span className="font-mono text-muted">{s.total}</span>
+                        </div>
+                        <p className="mt-0.5 font-mono text-[11px] text-status-delivered">
+                          {money(s.revenue)} TND
+                        </p>
+                      </div>
+                    ))}
+                    {data.storeStats.length === 0 && (
+                      <p className="text-xs text-muted">Aucune donnee</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

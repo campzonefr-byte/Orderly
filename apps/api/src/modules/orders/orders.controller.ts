@@ -152,6 +152,18 @@ getCustomers(
     search,
   });
 }
+@Get('stats/dashboard')
+  getDashboard(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('storeIds') storeIds?: string,
+  ) {
+    return this.orders.getDashboard({
+      from,
+      to,
+      storeIds: storeIds ? storeIds.split(',') : undefined,
+    });
+  }
   @Get(':id/events')
   getEvents(@Param('id') id: string) {
     return this.orders.getOrderEvents(id);

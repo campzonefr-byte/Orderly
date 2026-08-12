@@ -868,4 +868,195 @@ export class OrdersService {
       })
       .sort((a: any, b: any) => b.lifetimeValue - a.lifetimeValue);
   }
+  async getDashboard(query: { from?: string; to?: string; storeIds?: string[] }) {
+    const where: any = {};
+    if (query.storeIds?.length) where.storeId = { in: query.storeIds };
+    if (query.from || query.to) {
+      where.sourceCreatedAt = {};
+      if (query.from) where.sourceCreatedAt.gte = new Date(query.from);
+      if (query.to) where.sourceCreatedAt.lte = new Date(query.to);
+    }
+  
+    const orders = await this.prisma.order.findMany({
+      where,
+      include: {
+        lineItems: { select: { title: true, quantity: true, price: true } },
+        store: { select: { id: true, name: true } },
+      },
+      orderBy: { sourceCreatedAt: 'asc' },
+    });
+  
+    const active = orders.filter((o) => o.orderStatus !== 'ARCHIVE');
+  
+    // --- KPIs ---
+    const total = active.length;
+    const delivered = active.filter((o) => ['LIVRE', 'PAYE'].includes(o.orderStatus)).length;
+    const paid = active.filter((o) => o.orderStatus === 'PAYE').length;
+    const returned = active.filter((o) =>
+      ['RETOUR', 'RETOUR_DEPOT', 'RETOUR_RECU'].includes(o.orderStatus),
+    ).length;
+    const cancelled = active.filter((o) => o.orderStatus === 'ANNULE').length;
+    const inProgress = active.filter((o) =>
+      ['A_PREPARER', 'EN_PREPARATION', 'EMBALLE', 'AU_DEPOT_LIVREUR', 'EN_COURS_DE_LIVRAISON'].includes(
+        o.orderStatus,
+      ),
+    ).length;
+    const pending = active.filter((o) =>
+      ['NOUVEAU', 'CONFIRMATION_EN_COURS'].includes(o.orderStatus),
+    ).length;
+  
+    const confirmed = active.filter((o) => {
+      const attempts = (o.callAttempts as any[]) ?? [];
+      return (
+        attempts.some((a) => a.result === 'ANSWERED_CONFIRMED') ||
+        ['A_PREPARER', 'CONFIRME', 'ECHANGE', 'EN_PREPARATION', 'EMBALLE',
+         'AU_DEPOT_LIVREUR', 'EN_COURS_DE_LIVRAISON', 'LIVRE', 'PAYE'].includes(o.orderStatus)
+      );
+    }).length;
+  
+    const revenue = active
+      .filter((o) => o.orderStatus === 'PAYE')
+      .reduce((s, o) => s + Number(o.total), 0);
+  
+    const pendingRevenue = active
+      .filter((o) => o.orderStatus === 'LIVRE')
+      .reduce((s, o) => s + Number(o.total), 0);
+  
+    const potentialRevenue = active
+      .filter((o) =>
+        ['A_PREPARER', 'EN_PREPARATION', 'EMBALLE', 'AU_DEPOT_LIVREUR', 'EN_COURS_DE_LIVRAISON'].includes(
+          o.orderStatus,
+        ),
+      )
+      .reduce((s, o) => s + Number(o.total), 0);
+  
+    const finished = delivered + returned;
+  
+    // --- Daily timeline (last 30 buckets) ---
+    const byDay: Record<string, { date: string; orders: number; delivered: number; revenue: number }> = {};
+    for (const o of active) {
+      const d = new Date(o.sourceCreatedAt).toISOString().slice(0, 10);
+      if (!byDay[d]) byDay[d] = { date: d, orders: 0, delivered: 0, revenue: 0 };
+      byDay[d].orders++;
+      if (['LIVRE', 'PAYE'].includes(o.orderStatus)) byDay[d].delivered++;
+      if (o.orderStatus === 'PAYE') byDay[d].revenue += Number(o.total);
+    }
+    const timeline = Object.values(byDay).sort((a, b) => a.date.localeCompare(b.date)).slice(-30);
+  
+    // --- Status breakdown ---
+    const statusCounts: Record<string, number> = {};
+    active.forEach((o) => {
+      statusCounts[o.orderStatus] = (statusCounts[o.orderStatus] ?? 0) + 1;
+    });
+  
+    // --- Top products ---
+    const productMap: Record<string, { title: string; qty: number; revenue: number; orders: number }> = {};
+    for (const o of active) {
+      for (const li of o.lineItems) {
+        if (!productMap[li.title]) {
+          productMap[li.title] = { title: li.title, qty: 0, revenue: 0, orders: 0 };
+        }
+        productMap[li.title].qty += li.quantity;
+        productMap[li.title].revenue += Number(li.price) * li.quantity;
+        productMap[li.title].orders++;
+      }
+    }
+    const topProducts = Object.values(productMap)
+      .sort((a, b) => b.qty - a.qty)
+      .slice(0, 8);
+  
+    // --- Delivery company performance ---
+    const carrierMap: Record<string, { name: string; total: number; delivered: number; returned: number; revenue: number }> = {};
+    for (const o of active) {
+      const name = o.deliveryCompany ?? 'Non assigne';
+      if (!carrierMap[name]) {
+        carrierMap[name] = { name, total: 0, delivered: 0, returned: 0, revenue: 0 };
+      }
+      carrierMap[name].total++;
+      if (['LIVRE', 'PAYE'].includes(o.orderStatus)) carrierMap[name].delivered++;
+      if (['RETOUR', 'RETOUR_DEPOT', 'RETOUR_RECU'].includes(o.orderStatus)) carrierMap[name].returned++;
+      if (o.orderStatus === 'PAYE') carrierMap[name].revenue += Number(o.total);
+    }
+    const carriers = Object.values(carrierMap)
+      .map((c) => {
+        const fin = c.delivered + c.returned;
+        return {
+          ...c,
+          deliveryRate: fin > 0 ? Math.round((c.delivered / fin) * 100) : 0,
+          returnRate: fin > 0 ? Math.round((c.returned / fin) * 100) : 0,
+        };
+      })
+      .sort((a, b) => b.total - a.total);
+  
+    // --- Store breakdown ---
+    const storeMap: Record<string, { name: string; total: number; revenue: number }> = {};
+    for (const o of active) {
+      const key = o.store.name;
+      if (!storeMap[key]) storeMap[key] = { name: key, total: 0, revenue: 0 };
+      storeMap[key].total++;
+      if (o.orderStatus === 'PAYE') storeMap[key].revenue += Number(o.total);
+    }
+    const storeStats = Object.values(storeMap).sort((a, b) => b.total - a.total);
+  
+    // --- Alerts ---
+    const lowStock = await this.prisma.product.findMany({
+      where: query.storeIds?.length ? { storeId: { in: query.storeIds } } : {},
+      select: { id: true, name: true, quantityAvailable: true, lowStockThreshold: true },
+    });
+    const lowStockCount = lowStock.filter(
+      (p) => p.quantityAvailable <= p.lowStockThreshold,
+    ).length;
+  
+    const now = new Date();
+    const scheduledSoon = active.filter((o) => {
+      if (!o.scheduledDeliveryDate) return false;
+      const diff = Math.ceil(
+        (new Date(o.scheduledDeliveryDate).getTime() - now.getTime()) / 86400000,
+      );
+      return diff <= 1 && diff >= 0;
+    }).length;
+  
+    const openReclamations = active.filter((o) => {
+      if (!(o.tags ?? []).includes('Réclamation')) return false;
+      try {
+        const rec = JSON.parse(o.internalNote ?? '{}').reclamation;
+        return rec && rec.status !== 'RESOLU';
+      } catch {
+        return true;
+      }
+    }).length;
+  
+    const toVerify = active.filter((o) => o.orderStatus === 'A_VERIFIER').length;
+  
+    return {
+      kpis: {
+        total,
+        pending,
+        confirmed,
+        inProgress,
+        delivered,
+        paid,
+        returned,
+        cancelled,
+        confirmationRate: total > 0 ? Math.round((confirmed / total) * 100) : 0,
+        deliveryRate: finished > 0 ? Math.round((delivered / finished) * 100) : 0,
+        returnRate: finished > 0 ? Math.round((returned / finished) * 100) : 0,
+        revenue,
+        pendingRevenue,
+        potentialRevenue,
+        avgBasket: paid > 0 ? Math.round(revenue / paid) : 0,
+      },
+      timeline,
+      statusCounts,
+      topProducts,
+      carriers,
+      storeStats,
+      alerts: {
+        lowStock: lowStockCount,
+        scheduledSoon,
+        openReclamations,
+        toVerify,
+      },
+    };
+  }
 }
