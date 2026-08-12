@@ -1,10 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrderStatus, FinancialStatus, FulfillmentStatus, Prisma } from '@prisma/client';
-
+import { CosmosService } from '../delivery/cosmos.service';
 @Injectable()
 export class OrdersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cosmos: CosmosService,
+  ) {}
 
   async findAll(query: {
     storeIds?: string[];
@@ -516,6 +519,13 @@ export class OrdersService {
         actor: actorId,
       },
     });
+
+    // Auto-create shipment at courier when order is printed
+    if (status === 'EN_PREPARATION' && order.deliveryCompany === 'Cosmos') {
+      this.cosmos.createShipment(orderId, actorId).catch((e) => {
+        console.warn('[cosmos] shipment creation failed:', e?.message);
+      });
+    }
 
     return order;
   }

@@ -6,6 +6,7 @@ import { StoresModule } from './modules/stores/stores.module';
 import { UsersModule } from './modules/users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ChatModule } from './modules/chat/chat.module';
+import { DeliveryModule } from './modules/delivery/delivery.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { MarketingModule } from './modules/marketing/marketing.module';
@@ -21,6 +22,7 @@ import { MarketingModule } from './modules/marketing/marketing.module';
     NotificationsModule,
     MarketingModule,
     ChatModule,
+    DeliveryModule,
   ],
 })
 export class AppModule {}
