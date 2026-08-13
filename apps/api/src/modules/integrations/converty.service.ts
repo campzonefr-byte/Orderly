@@ -461,7 +461,7 @@ export class ConvertyService {
     const token = await this.getValidToken(storeId);
     if (!token) return { ok: false, error: 'Non connecte' };
 
-    const url = `${CONVERTY_API}${path}`;
+    const url = path.startsWith('http') ? path : `${CONVERTY_API}${path}`;
     try {
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
