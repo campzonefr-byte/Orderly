@@ -197,10 +197,32 @@ export class ConvertyService {
     if (!token) return { ok: false, error: 'Converty non connecte' };
 
     try {
-      const res = await fetch(`${CONVERTY_API}/products?limit=250`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const url = `${CONVERTY_API}/products?limit=250`;
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
       });
-      const data: any = await res.json();
+
+      const raw = await res.text();
+
+      if (raw.trim().startsWith('<')) {
+        return {
+          ok: false,
+          error: `Converty a renvoye du HTML (HTTP ${res.status})`,
+          url,
+          preview: raw.slice(0, 300),
+        };
+      }
+
+      let data: any;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        return { ok: false, error: 'Reponse illisible', preview: raw.slice(0, 300) };
+      }
+
       if (!res.ok) return { ok: false, error: `HTTP ${res.status}`, raw: data };
 
       const items: any[] = data?.data ?? data?.products ?? (Array.isArray(data) ? data : []);
@@ -264,13 +286,40 @@ export class ConvertyService {
     if (!token) return { ok: false, error: 'Converty non connecte' };
 
     try {
-      const res = await fetch(`${CONVERTY_API}/orders?limit=${limit}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const url = `${CONVERTY_API}/orders?limit=${limit}`;
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
       });
-      const data: any = await res.json();
-      if (!res.ok) return { ok: false, error: `HTTP ${res.status}`, raw: data };
 
-      const items: any[] = data?.data ?? data?.orders ?? (Array.isArray(data) ? data : []);
+      const raw = await res.text();
+
+      // Converty returned HTML instead of JSON
+      if (raw.trim().startsWith('<')) {
+        return {
+          ok: false,
+          error: `Converty a renvoye du HTML (HTTP ${res.status})`,
+          url,
+          preview: raw.slice(0, 300),
+        };
+      }
+
+      let data: any;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        return { ok: false, error: 'Reponse illisible', preview: raw.slice(0, 300) };
+      }
+
+      if (!res.ok) {
+        return { ok: false, error: `HTTP ${res.status}`, raw: data };
+      }
+
+      const items: any[] =
+        data?.data ?? data?.orders ?? data?.results ?? (Array.isArray(data) ? data : []);
+
       let created = 0;
       let skipped = 0;
 
@@ -407,5 +456,26 @@ export class ConvertyService {
     const order = payload?.data ?? payload?.order ?? payload;
     const r = await this.upsertOrder(storeId, order);
     return { ok: true, ...r };
+  }
+  async debugRaw(storeId: string, path: string) {
+    const token = await this.getValidToken(storeId);
+    if (!token) return { ok: false, error: 'Non connecte' };
+
+    const url = `${CONVERTY_API}${path}`;
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      });
+      const raw = await res.text();
+      return {
+        ok: res.ok,
+        status: res.status,
+        contentType: res.headers.get('content-type'),
+        url,
+        preview: raw.slice(0, 800),
+      };
+    } catch (e: any) {
+      return { ok: false, error: e?.message, url };
+    }
   }
 }

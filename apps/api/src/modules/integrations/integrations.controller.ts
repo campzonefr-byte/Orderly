@@ -56,7 +56,11 @@ export class IntegrationsController {
   importProducts(@Param('storeId') storeId: string) {
     return this.converty.importProducts(storeId);
   }
-
+  @UseGuards(JwtAuthGuard)
+  @Get('converty/:storeId/debug')
+  debug(@Param('storeId') storeId: string, @Query('path') path: string) {
+    return this.converty.debugRaw(storeId, path ?? '/stores/me');
+  }
   @UseGuards(JwtAuthGuard)
   @Post('converty/:storeId/import-orders')
   importOrders(
