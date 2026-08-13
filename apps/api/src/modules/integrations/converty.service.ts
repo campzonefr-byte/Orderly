@@ -2,24 +2,22 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrderStatus } from '@prisma/client';
 
-const CONVERTY_API = 'https://api.converty.shop/api/v1';
-const CONVERTY_AUTH = 'https://app.converty.shop/oauth/authorize';
-const CONVERTY_TOKEN = 'https://api.converty.shop/api/v1/oauth/token';
+const CONVERTY_BASE = 'https://partner.converty.shop';
+const CONVERTY_API = `${CONVERTY_BASE}/api/v1`;
+const CONVERTY_AUTH = `${CONVERTY_BASE}/oauth2/authorize`;
+const CONVERTY_TOKEN = `${CONVERTY_BASE}/oauth2/token`;
 
 const STATUS_MAP: Record<string, OrderStatus> = {
   pending: 'NOUVEAU',
   attempt: 'CONFIRMATION_EN_COURS',
   confirmed: 'A_PREPARER',
   exchange: 'ECHANGE',
-  uploaded: 'EMBALLE',
   packed: 'EN_PREPARATION',
+  uploaded: 'EMBALLE',
   'in transit': 'EN_COURS_DE_LIVRAISON',
-  in_transit: 'EN_COURS_DE_LIVRAISON',
   delivered: 'LIVRE',
-  paid: 'PAYE',
   returned: 'RETOUR',
   rejected: 'ANNULE',
-  cancelled: 'ANNULE',
 };
 
 @Injectable()
@@ -48,9 +46,9 @@ export class ConvertyService {
     ].join(' ');
 
     const params = new URLSearchParams({
+      response_type: 'code',
       client_id: this.clientId,
       redirect_uri: this.redirectUri,
-      response_type: 'code',
       scope: scopes,
       state: storeId,
     });
@@ -60,16 +58,17 @@ export class ConvertyService {
 
   async handleCallback(code: string, storeId: string) {
     try {
+      const body = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        client_id: this.clientId,
+        client_secret: this.clientSecret,
+      });
+
       const res = await fetch(CONVERTY_TOKEN, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          grant_type: 'authorization_code',
-          client_id: this.clientId,
-          client_secret: this.clientSecret,
-          redirect_uri: this.redirectUri,
-          code,
-        }),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
       });
 
       const data: any = await res.json();
@@ -93,7 +92,6 @@ export class ConvertyService {
       accessToken: data.access_token,
       refreshToken: data.refresh_token ?? null,
       expiresAt,
-      scope: data.scope ?? null,
     };
 
     const existing = await this.prisma.deliveryIntegration.findFirst({
@@ -121,25 +119,25 @@ export class ConvertyService {
     const creds = integration.credentials as any;
     if (!creds?.accessToken) return null;
 
-    // Still valid?
     if (creds.expiresAt && new Date(creds.expiresAt) > new Date()) {
       return creds.accessToken;
     }
-
-    // Refresh
     if (!creds.refreshToken) return creds.accessToken;
 
     try {
+      const body = new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: creds.refreshToken,
+        client_id: this.clientId,
+        client_secret: this.clientSecret,
+      });
+
       const res = await fetch(CONVERTY_TOKEN, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          grant_type: 'refresh_token',
-          client_id: this.clientId,
-          client_secret: this.clientSecret,
-          refresh_token: creds.refreshToken,
-        }),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
       });
+
       const data: any = await res.json();
       if (!res.ok || !data?.access_token) return creds.accessToken;
 
@@ -164,7 +162,6 @@ export class ConvertyService {
       connected: integration.isActive && !!creds?.accessToken,
       configured: !!this.clientId,
       expiresAt: creds?.expiresAt ?? null,
-      scope: creds?.scope ?? null,
       updatedAt: integration.updatedAt,
     };
   }
@@ -179,6 +176,20 @@ export class ConvertyService {
       data: { isActive: false },
     });
     return { ok: true };
+  }
+
+  async testConnection(storeId: string) {
+    const token = await this.getValidToken(storeId);
+    if (!token) return { ok: false, error: 'Non connecte' };
+    try {
+      const res = await fetch(`${CONVERTY_API}/stores/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      return { ok: res.ok, data };
+    } catch (e: any) {
+      return { ok: false, error: e?.message };
+    }
   }
 
   async importProducts(storeId: string) {
@@ -197,18 +208,22 @@ export class ConvertyService {
       let updated = 0;
 
       for (const p of items) {
-        const variants: any[] = p?.variants ?? [];
+        const variants: any[] = p?.newVariants ?? [];
         const rows = variants.length
           ? variants.map((v) => ({
-              sku: String(v.sku ?? v._id ?? p._id),
-              name: `${p.name ?? p.title ?? 'Produit'}${v.name ? ' - ' + v.name : ''}`,
-              qty: Number(v.quantity ?? v.stock ?? 0),
+              sku: String(v.sku ?? v.id ?? p._id),
+              name: `${p.name ?? 'Produit'}${
+                v.selectedValues?.length ? ' - ' + v.selectedValues.join(' / ') : ''
+              }`,
+              qty: Number(v.stock?.quantity ?? 0),
+              alert: Number(v.stock?.alertOn ?? 5),
             }))
           : [
               {
                 sku: String(p.sku ?? p._id),
-                name: p.name ?? p.title ?? 'Produit',
-                qty: Number(p.quantity ?? p.stock ?? 0),
+                name: p.name ?? 'Produit',
+                qty: Number(p.stock ?? 0),
+                alert: 5,
               },
             ];
 
@@ -230,7 +245,7 @@ export class ConvertyService {
                 sku: r.sku,
                 name: r.name,
                 quantityAvailable: r.qty,
-                lowStockThreshold: 5,
+                lowStockThreshold: r.alert > 0 ? r.alert : 5,
               },
             });
             created++;
@@ -260,62 +275,9 @@ export class ConvertyService {
       let skipped = 0;
 
       for (const o of items) {
-        const externalId = String(o._id ?? o.id ?? '');
-        if (!externalId) continue;
-
-        const exists = await this.prisma.order.findUnique({
-          where: { storeId_externalOrderId: { storeId, externalOrderId: externalId } },
-        });
-        if (exists) {
-          skipped++;
-          continue;
-        }
-
-        const rawStatus = String(o.status ?? 'pending').toLowerCase();
-        const orderStatus = STATUS_MAP[rawStatus] ?? 'NOUVEAU';
-
-        const items2: any[] = o.items ?? o.products ?? [];
-        const lineItems = items2.map((li) => ({
-          title: li.name ?? li.title ?? 'Produit',
-          sku: li.sku ? String(li.sku) : null,
-          variantTitle: li.variant ?? li.variantName ?? null,
-          quantity: Number(li.quantity ?? 1),
-          price: Number(li.price ?? 0),
-          fulfilledQty: 0,
-          refundedQty: 0,
-        }));
-
-        const total = Number(o.total?.totalPrice ?? o.totalAmount ?? o.total ?? 0);
-        const subtotal = Number(o.total?.subTotal ?? total);
-
-        await this.prisma.order.create({
-          data: {
-            storeId,
-            externalOrderId: externalId,
-            orderNumber: o.orderNumber ? `#${o.orderNumber}` : `#C-${externalId.slice(-6)}`,
-            orderStatus,
-            financialStatus: orderStatus === 'PAYE' ? 'PAID' : 'PENDING',
-            fulfillmentStatus: 'UNFULFILLED',
-            customerName: o.customer?.name ?? o.name ?? null,
-            customerPhone: o.customer?.phone ?? o.phone ?? null,
-            customerPhone2: o.customer?.phone2 ?? o.phone2 ?? null,
-            shippingAddress: {
-              address1: o.customer?.address ?? o.address ?? '',
-              city: o.customer?.city ?? o.city ?? '',
-            },
-            currency: 'TND',
-            subtotal,
-            taxTotal: 0,
-            shippingTotal: Number(o.total?.deliveryPrice ?? 0),
-            total,
-            totalRefunded: 0,
-            tags: ['Converty'],
-            deliveryCompany: o.deliveryCompany ?? null,
-            sourceCreatedAt: o.createdAt ? new Date(o.createdAt) : new Date(),
-            lineItems: { create: lineItems },
-          },
-        });
-        created++;
+        const r = await this.upsertOrder(storeId, o);
+        if (r.created) created++;
+        else skipped++;
       }
 
       return { ok: true, created, skipped, total: items.length };
@@ -324,32 +286,115 @@ export class ConvertyService {
     }
   }
 
+  private async upsertOrder(storeId: string, o: any) {
+    const externalId = String(o?._id ?? o?.id ?? '');
+    if (!externalId) return { created: false };
+
+    const rawStatus = String(o?.status ?? 'pending').toLowerCase();
+    const mapped = STATUS_MAP[rawStatus] ?? 'NOUVEAU';
+
+    const existing = await this.prisma.order.findUnique({
+      where: { storeId_externalOrderId: { storeId, externalOrderId: externalId } },
+    });
+
+    if (existing) {
+      const protectedStatuses: OrderStatus[] = [
+        'A_PREPARER', 'EN_PREPARATION', 'EMBALLE', 'AU_DEPOT_LIVREUR', 'PAYE', 'ARCHIVE',
+      ];
+      if (!protectedStatuses.includes(existing.orderStatus) && mapped !== existing.orderStatus) {
+        await this.prisma.order.update({
+          where: { id: existing.id },
+          data: { orderStatus: mapped },
+        });
+      }
+      return { created: false };
+    }
+
+    const cart: any[] = o?.cart ?? [];
+    const lineItems = cart.map((c) => {
+      const variant = (c.selectedVariants ?? [])
+        .map((v: any) => v.value)
+        .filter(Boolean)
+        .join(' / ');
+      return {
+        title: c.product?.name ?? 'Produit',
+        sku: c.product?.sku ? String(c.product.sku) : null,
+        variantTitle: variant || null,
+        quantity: Number(c.quantity ?? 1),
+        price: Number(c.pricePerUnit ?? c.product?.price ?? 0),
+        fulfilledQty: 0,
+        refundedQty: 0,
+      };
+    });
+
+    const total = Number(o?.total?.totalPrice ?? 0);
+    const deliveryPrice = Number(o?.total?.deliveryPrice ?? 0);
+    const subtotal = Math.max(0, total - deliveryPrice);
+
+    const cust = o?.customer ?? {};
+    const isExchange = o?.exchange === true;
+
+    await this.prisma.order.create({
+      data: {
+        storeId,
+        externalOrderId: externalId,
+        orderNumber: o?.reference ? `#${o.reference}` : `#C-${externalId.slice(-6)}`,
+        orderStatus: isExchange ? 'ECHANGE' : mapped,
+        financialStatus: o?.paymentStatus === 'paid' ? 'PAID' : 'PENDING',
+        fulfillmentStatus: 'UNFULFILLED',
+        customerName: cust.name ?? null,
+        customerPhone: cust.phone ?? null,
+        customerPhone2: cust.phone2 || null,
+        customerEmail: cust.email || null,
+        shippingAddress: {
+          address1: cust.address ?? '',
+          city: cust.city ?? '',
+          province: cust.town ?? '',
+        },
+        currency: 'TND',
+        subtotal,
+        taxTotal: 0,
+        shippingTotal: deliveryPrice,
+        total,
+        totalRefunded: 0,
+        tags: isExchange ? ['Converty', 'Échange'] : ['Converty'],
+        notes: cust.note || null,
+        deliveryCompany: o?.deliveryCompany ?? null,
+        sourceCreatedAt: o?.createdAt ? new Date(o.createdAt) : new Date(),
+        lineItems: { create: lineItems },
+      },
+    });
+
+    return { created: true };
+  }
+
   async registerWebhooks(storeId: string) {
     const token = await this.getValidToken(storeId);
     if (!token) return { ok: false, error: 'Converty non connecte' };
 
-    const base = (process.env.CONVERTY_REDIRECT_URI ?? '').replace(
+    const base = (this.redirectUri ?? '').replace(
       '/integrations/converty/callback',
       '',
     );
 
     const hooks = [
-      { event: 'order.create', url: `${base}/webhooks/converty/${storeId}/order-create` },
-      { event: 'order.update', url: `${base}/webhooks/converty/${storeId}/order-update` },
+      { event: 'order.create', targetUrl: `${base}/webhooks/converty/${storeId}/order-create` },
+      { event: 'order.update', targetUrl: `${base}/webhooks/converty/${storeId}/order-update` },
     ];
 
     const results: any[] = [];
     for (const h of hooks) {
       try {
-        const res = await fetch(`${CONVERTY_API}/hooks`, {
+        const res = await fetch(`${CONVERTY_API}/hooks/subscribe`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ event: h.event, url: h.url }),
+          body: JSON.stringify(h),
         });
-        results.push({ event: h.event, ok: res.ok, status: res.status });
+        const body = await res.json().catch(() => ({}));
+        results.push({ event: h.event, ok: res.ok, status: res.status, body });
       } catch (e: any) {
         results.push({ event: h.event, ok: false, error: e?.message });
       }
@@ -359,70 +404,8 @@ export class ConvertyService {
   }
 
   async handleWebhook(storeId: string, payload: any) {
-    const externalId = String(payload?._id ?? payload?.id ?? '');
-    if (!externalId) return { ok: false, error: 'Pas d id' };
-
-    const rawStatus = String(payload?.status ?? 'pending').toLowerCase();
-    const mapped = STATUS_MAP[rawStatus] ?? 'NOUVEAU';
-
-    const existing = await this.prisma.order.findUnique({
-      where: { storeId_externalOrderId: { storeId, externalOrderId: externalId } },
-    });
-
-    if (existing) {
-      // Do not override work done by our team
-      const protectedStatuses: OrderStatus[] = [
-        'A_PREPARER', 'EN_PREPARATION', 'EMBALLE', 'AU_DEPOT_LIVREUR', 'PAYE',
-      ];
-      if (protectedStatuses.includes(existing.orderStatus)) {
-        return { ok: true, skipped: true };
-      }
-      await this.prisma.order.update({
-        where: { id: existing.id },
-        data: { orderStatus: mapped },
-      });
-      return { ok: true, updated: true };
-    }
-
-    const items: any[] = payload?.items ?? payload?.products ?? [];
-    const total = Number(payload?.total?.totalPrice ?? payload?.totalAmount ?? 0);
-
-    await this.prisma.order.create({
-      data: {
-        storeId,
-        externalOrderId: externalId,
-        orderNumber: payload?.orderNumber ? `#${payload.orderNumber}` : `#C-${externalId.slice(-6)}`,
-        orderStatus: mapped,
-        financialStatus: 'PENDING',
-        fulfillmentStatus: 'UNFULFILLED',
-        customerName: payload?.customer?.name ?? payload?.name ?? null,
-        customerPhone: payload?.customer?.phone ?? payload?.phone ?? null,
-        customerPhone2: payload?.customer?.phone2 ?? null,
-        shippingAddress: {
-          address1: payload?.customer?.address ?? payload?.address ?? '',
-          city: payload?.customer?.city ?? payload?.city ?? '',
-        },
-        currency: 'TND',
-        subtotal: total,
-        taxTotal: 0,
-        shippingTotal: 0,
-        total,
-        totalRefunded: 0,
-        tags: ['Converty'],
-        sourceCreatedAt: payload?.createdAt ? new Date(payload.createdAt) : new Date(),
-        lineItems: {
-          create: items.map((li) => ({
-            title: li.name ?? li.title ?? 'Produit',
-            sku: li.sku ? String(li.sku) : null,
-            quantity: Number(li.quantity ?? 1),
-            price: Number(li.price ?? 0),
-            fulfilledQty: 0,
-            refundedQty: 0,
-          })),
-        },
-      },
-    });
-
-    return { ok: true, created: true };
+    const order = payload?.data ?? payload?.order ?? payload;
+    const r = await this.upsertOrder(storeId, order);
+    return { ok: true, ...r };
   }
 }
