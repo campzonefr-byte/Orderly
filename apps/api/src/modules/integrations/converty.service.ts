@@ -2,10 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrderStatus } from '@prisma/client';
 
-const CONVERTY_BASE = 'https://partner.converty.shop';
-const CONVERTY_API = `${CONVERTY_BASE}/api/v1`;
-const CONVERTY_AUTH = `${CONVERTY_BASE}/oauth2/authorize`;
-const CONVERTY_TOKEN = `${CONVERTY_BASE}/oauth2/token`;
+const CONVERTY_PARTNER = 'https://partner.converty.shop';
+const CONVERTY_API = 'https://api.converty.shop/api/v1';
+const CONVERTY_AUTH = `${CONVERTY_PARTNER}/oauth2/authorize`;
+const CONVERTY_TOKEN = `${CONVERTY_PARTNER}/oauth2/token`;
 
 const STATUS_MAP: Record<string, OrderStatus> = {
   pending: 'NOUVEAU',
