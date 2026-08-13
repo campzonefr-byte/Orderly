@@ -10,6 +10,7 @@ import { DeliveryModule } from './modules/delivery/delivery.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { MarketingModule } from './modules/marketing/marketing.module';
+import { IntegrationsModule } from './modules/integrations/integrations.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -23,6 +24,7 @@ import { MarketingModule } from './modules/marketing/marketing.module';
     MarketingModule,
     ChatModule,
     DeliveryModule,
+    IntegrationsModule,
   ],
 })
 export class AppModule {}
