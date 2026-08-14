@@ -19,7 +19,20 @@ export class DeliveryController {
   ) {
     return this.cosmos.saveConfig(storeId, body.token);
   }
+  @Get('cosmos/cities')
+  getCities() {
+    return this.cosmos.getCities();
+  }
 
+  @Get('cosmos/label/:orderId')
+  getLabel(@Param('orderId') orderId: string) {
+    return this.cosmos.getLabelUrl(orderId);
+  }
+
+  @Post('cosmos/shipment/:orderId/delete')
+  deleteShipment(@Param('orderId') orderId: string) {
+    return this.cosmos.deleteShipment(orderId);
+  }
   @Post('cosmos/:storeId/test')
   testConnection(@Param('storeId') storeId: string) {
     return this.cosmos.testConnection(storeId);

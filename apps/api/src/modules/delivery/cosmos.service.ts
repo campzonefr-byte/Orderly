@@ -4,20 +4,39 @@ import { OrderStatus } from '@prisma/client';
 
 const COSMOS_BASE = 'https://api.cosmos.tn/api/v1';
 
-// Mapping Cosmos → Orderly (à ajuster quand Cosmos confirme leurs statuts)
+export const COSMOS_CITIES = [
+  'Ariana', 'Ben Arous', 'Manouba', 'Tunis', 'Sfax', 'Kairouan', 'Gafsa',
+  'Gabes', 'Bizerte', 'Beja', 'Jendouba', 'Kasserine', 'Kebili', 'Kef',
+  'Mahdia', 'Medenine', 'Monastir', 'Nabeul', 'Sidi Bouzid', 'Siliana',
+  'Sousse', 'Tataouine', 'Tozeur', 'Zaghouan',
+];
+
 const STATUS_MAP: Record<string, OrderStatus> = {
-  created: 'AU_DEPOT_LIVREUR',
   pending: 'AU_DEPOT_LIVREUR',
-  picked_up: 'AU_DEPOT_LIVREUR',
-  at_depot: 'AU_DEPOT_LIVREUR',
-  in_transit: 'EN_COURS_DE_LIVRAISON',
-  out_for_delivery: 'EN_COURS_DE_LIVRAISON',
+  'to-be-picked': 'AU_DEPOT_LIVREUR',
+  'in-depot': 'AU_DEPOT_LIVREUR',
+  'in-transfer': 'EN_COURS_DE_LIVRAISON',
+  'in-delivery': 'EN_COURS_DE_LIVRAISON',
+  'to-be-verified': 'A_VERIFIER',
   delivered: 'LIVRE',
-  paid: 'PAYE',
-  returned: 'RETOUR',
-  return_depot: 'RETOUR_DEPOT',
-  cancelled: 'ANNULE',
+  'return-stock': 'RETOUR_DEPOT',
+  'return-in-transfer': 'RETOUR_DEPOT',
+  'final-return': 'RETOUR',
+  'received-return': 'RETOUR_RECU',
 };
+
+function normalizeCity(raw?: string | null): string | null {
+  if (!raw) return null;
+  const clean = raw.trim().toLowerCase().replace(/[éèê]/g, 'e').replace(/\s+/g, ' ');
+  const found = COSMOS_CITIES.find(
+    (c) => c.toLowerCase().replace(/[éèê]/g, 'e') === clean,
+  );
+  if (found) return found;
+  const partial = COSMOS_CITIES.find(
+    (c) => clean.includes(c.toLowerCase()) || c.toLowerCase().includes(clean),
+  );
+  return partial ?? null;
+}
 
 @Injectable()
 export class CosmosService {
@@ -29,28 +48,21 @@ export class CosmosService {
     });
     if (!integration) return null;
     const creds = integration.credentials as any;
-    return { token: creds?.token as string, integrationId: integration.id };
+    return { token: creds?.token as string };
   }
 
   async saveConfig(storeId: string, token: string) {
     const existing = await this.prisma.deliveryIntegration.findFirst({
       where: { storeId, provider: 'COSMOS' },
     });
-
     if (existing) {
       return this.prisma.deliveryIntegration.update({
         where: { id: existing.id },
         data: { credentials: { token }, isActive: true },
       });
     }
-
     return this.prisma.deliveryIntegration.create({
-      data: {
-        storeId,
-        provider: 'COSMOS',
-        credentials: { token },
-        isActive: true,
-      },
+      data: { storeId, provider: 'COSMOS', credentials: { token }, isActive: true },
     });
   }
 
@@ -62,7 +74,6 @@ export class CosmosService {
     const creds = integration.credentials as any;
     return {
       connected: integration.isActive && !!creds?.token,
-      isActive: integration.isActive,
       hasToken: !!creds?.token,
       updatedAt: integration.updatedAt,
     };
@@ -73,11 +84,19 @@ export class CosmosService {
     if (!config?.token) return { ok: false, error: 'Aucun token configure' };
 
     try {
-      const res = await fetch(`${COSMOS_BASE}/orders?limit=1`, {
-        headers: { Authorization: `Bearer ${config.token}` },
+      const res = await fetch(`${COSMOS_BASE}/orders?page=1&limit=1`, {
+        headers: {
+          Authorization: `Bearer ${config.token}`,
+          'Content-Type': 'application/json',
+        },
       });
-      if (res.ok) return { ok: true, message: 'Connexion reussie' };
-      return { ok: false, error: `HTTP ${res.status}`, detail: await res.text() };
+      const raw = await res.text();
+      if (raw.trim().startsWith('<')) {
+        return { ok: false, error: `HTML recu (HTTP ${res.status})`, preview: raw.slice(0, 200) };
+      }
+      const data = JSON.parse(raw);
+      if (!res.ok) return { ok: false, error: data?.message ?? `HTTP ${res.status}` };
+      return { ok: true, message: `Connexion reussie · ${data?.count ?? 0} commandes visibles` };
     } catch (e: any) {
       return { ok: false, error: e?.message ?? 'Erreur reseau' };
     }
@@ -90,7 +109,6 @@ export class CosmosService {
     });
     if (!order) return { ok: false, error: 'Commande introuvable' };
 
-    // Already sent?
     const existing = await this.prisma.fulfillment.findFirst({
       where: { orderId, carrier: 'COSMOS' },
     });
@@ -102,26 +120,43 @@ export class CosmosService {
     if (!config?.token) return { ok: false, error: 'Cosmos non configure pour ce magasin' };
 
     const addr = order.shippingAddress as any;
+    const city = normalizeCity(addr?.city);
+    if (!city) {
+      return {
+        ok: false,
+        error: `Ville non reconnue par Cosmos : "${addr?.city ?? 'vide'}"`,
+        acceptedCities: COSMOS_CITIES,
+      };
+    }
+
+    const isExchange =
+      order.orderStatus === 'ECHANGE' || (order.tags ?? []).includes('Échange');
+
     const content = order.lineItems
       .map((li) => `${li.title}${li.variantTitle ? ' - ' + li.variantTitle : ''} x${li.quantity}`)
       .join(', ');
     const quantity = order.lineItems.reduce((s, li) => s + li.quantity, 0);
 
+    let note = '';
+    if (order.internalNote && !order.internalNote.trim().startsWith('{')) {
+      note = order.internalNote;
+    }
+
     const payload = {
-      name: order.customerName ?? '',
+      name: order.customerName ?? 'Client',
       phone: (order.customerPhone ?? '').replace(/\s/g, ''),
       phone2: (order.customerPhone2 ?? '').replace(/\s/g, '') || undefined,
-      address: addr?.address1 ?? '',
-      city: addr?.city ?? '',
+      address: addr?.address1 || 'Adresse non precisee',
+      city,
+      quantity: Math.max(1, quantity),
+      packageCount: 1,
       totalAmount: Number(order.total),
-      quantity,
-      content,
-      note: typeof order.internalNote === 'string' && !order.internalNote.startsWith('{')
-        ? order.internalNote
-        : '',
-      options: { allowToOpen: true },
-      source: 'orderly',
+      content: content || 'Commande',
+      note,
       externalBarcode: order.orderNumber.replace('#', ''),
+      exchange: isExchange,
+      source: 'orderly',
+      options: { allowToOpen: true, isFragile: false },
     };
 
     try {
@@ -134,29 +169,36 @@ export class CosmosService {
         body: JSON.stringify(payload),
       });
 
-      const data: any = await res.json().catch(() => ({}));
+      const raw = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        return { ok: false, error: 'Reponse illisible', preview: raw.slice(0, 300) };
+      }
 
-      if (!res.ok) {
+      if (!res.ok || !data?.success) {
         await this.prisma.orderEvent.create({
           data: {
             orderId,
             eventType: 'cosmos_error',
-            payload: { status: res.status, response: data },
+            payload: { status: res.status, response: data, sent: payload },
             actor: actorId ?? 'system',
           },
         });
-        return { ok: false, error: `HTTP ${res.status}`, detail: data };
+        return { ok: false, error: data?.message ?? `HTTP ${res.status}`, detail: data };
       }
 
-      const barcode =
-        data?.barcode ?? data?.data?.barcode ?? data?.trackingId ?? data?.id ?? null;
+      const d = data.data ?? {};
+      const barcode = d.barcode ?? d.id ?? null;
 
       await this.prisma.fulfillment.create({
         data: {
           orderId,
           carrier: 'COSMOS',
           trackingNumber: barcode ? String(barcode) : null,
-          status: 'created',
+          trackingUrl: d.labelPdfUrl ?? d.labelUrl ?? null,
+          status: d.status ?? 'pending',
           deliveryPartnerRef: barcode ? String(barcode) : null,
         },
       });
@@ -165,12 +207,17 @@ export class CosmosService {
         data: {
           orderId,
           eventType: 'cosmos_shipment_created',
-          payload: { barcode, response: data },
+          payload: { barcode, labelUrl: d.labelUrl, labelPdfUrl: d.labelPdfUrl },
           actor: actorId ?? 'system',
         },
       });
 
-      return { ok: true, barcode, response: data };
+      return {
+        ok: true,
+        barcode,
+        labelUrl: d.labelUrl ?? null,
+        labelPdfUrl: d.labelPdfUrl ?? null,
+      };
     } catch (e: any) {
       return { ok: false, error: e?.message ?? 'Erreur reseau' };
     }
@@ -180,67 +227,138 @@ export class CosmosService {
     const config = await this.getConfig(storeId);
     if (!config?.token) return { ok: false, error: 'Cosmos non configure' };
 
-    // Orders currently at the courier
     const orders = await this.prisma.order.findMany({
       where: {
         storeId,
         orderStatus: {
-          in: ['AU_DEPOT_LIVREUR', 'EN_COURS_DE_LIVRAISON', 'LIVRE', 'RETOUR', 'RETOUR_DEPOT'],
+          in: [
+            'AU_DEPOT_LIVREUR', 'EN_COURS_DE_LIVRAISON', 'LIVRE',
+            'RETOUR', 'RETOUR_DEPOT', 'A_VERIFIER', 'EMBALLE',
+          ],
         },
       },
       include: { fulfillments: { where: { carrier: 'COSMOS' }, take: 1 } },
     });
 
+    const withBarcode = orders.filter((o) => o.fulfillments[0]?.deliveryPartnerRef);
+    if (withBarcode.length === 0) return { ok: true, checked: 0, updated: 0 };
+
     let updated = 0;
     let checked = 0;
 
-    for (const order of orders) {
-      const barcode = order.fulfillments[0]?.deliveryPartnerRef;
-      if (!barcode) continue;
-      checked++;
+    // Cosmos accepts comma-separated barcodes, batch by 50
+    for (let i = 0; i < withBarcode.length; i += 50) {
+      const batch = withBarcode.slice(i, i + 50);
+      const barcodes = batch
+        .map((o) => o.fulfillments[0].deliveryPartnerRef)
+        .filter(Boolean)
+        .join(',');
 
       try {
-        const res = await fetch(`${COSMOS_BASE}/orders?barcode=${barcode}`, {
-          headers: { Authorization: `Bearer ${config.token}` },
-        });
+        const res = await fetch(
+          `${COSMOS_BASE}/orders?limit=100&barcode=${encodeURIComponent(barcodes)}`,
+          { headers: { Authorization: `Bearer ${config.token}` } },
+        );
         if (!res.ok) continue;
 
         const data: any = await res.json();
-        const item = Array.isArray(data) ? data[0] : data?.data?.[0] ?? data?.data ?? data;
-        const rawStatus = String(item?.status ?? item?.state ?? '').toLowerCase().replace(/\s/g, '_');
-        if (!rawStatus) continue;
+        const items: any[] = data?.data ?? [];
 
-        const mapped = STATUS_MAP[rawStatus];
-        if (!mapped || mapped === order.orderStatus) continue;
+        for (const item of items) {
+          checked++;
+          const ref = String(item.id ?? '');
+          const order = batch.find((o) => o.fulfillments[0]?.deliveryPartnerRef === ref);
+          if (!order) continue;
 
-        // Never override PAYE (only set via Excel import)
-        if (order.orderStatus === 'PAYE') continue;
+          let mapped = STATUS_MAP[String(item.status ?? '').toLowerCase()];
 
-        await this.prisma.order.update({
-          where: { id: order.id },
-          data: { orderStatus: mapped },
-        });
+          // Payment status wins when delivered and paid
+          if (item.paymentStatus === 'paid' && mapped === 'LIVRE') {
+            mapped = 'PAYE';
+          }
 
-        await this.prisma.orderEvent.create({
-          data: {
-            orderId: order.id,
-            eventType: 'status_changed',
-            payload: { to: mapped, source: 'cosmos', rawStatus },
-            actor: 'system:cosmos',
-          },
-        });
+          if (!mapped || mapped === order.orderStatus) continue;
+          if (order.orderStatus === 'PAYE' && mapped !== 'PAYE') continue;
 
-        updated++;
+          await this.prisma.order.update({
+            where: { id: order.id },
+            data: {
+              orderStatus: mapped,
+              ...(mapped === 'PAYE' && { financialStatus: 'PAID' }),
+            },
+          });
+
+          await this.prisma.fulfillment.updateMany({
+            where: { orderId: order.id, carrier: 'COSMOS' },
+            data: { status: item.status },
+          });
+
+          await this.prisma.orderEvent.create({
+            data: {
+              orderId: order.id,
+              eventType: 'status_changed',
+              payload: { to: mapped, source: 'cosmos', rawStatus: item.status },
+              actor: 'system:cosmos',
+            },
+          });
+
+          updated++;
+        }
       } catch {}
     }
 
     return { ok: true, checked, updated };
   }
 
+  async getLabelUrl(orderId: string) {
+    const f = await this.prisma.fulfillment.findFirst({
+      where: { orderId, carrier: 'COSMOS' },
+    });
+    if (!f?.deliveryPartnerRef) return { ok: false, error: 'Pas de colis Cosmos' };
+    return {
+      ok: true,
+      barcode: f.deliveryPartnerRef,
+      html: `${COSMOS_BASE}/labels?barcode=${f.deliveryPartnerRef}&format=html`,
+      pdf: `${COSMOS_BASE}/labels?barcode=${f.deliveryPartnerRef}&format=pdf`,
+      stored: f.trackingUrl,
+    };
+  }
+
+  async deleteShipment(orderId: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) return { ok: false, error: 'Commande introuvable' };
+
+    const config = await this.getConfig(order.storeId);
+    if (!config?.token) return { ok: false, error: 'Cosmos non configure' };
+
+    const f = await this.prisma.fulfillment.findFirst({
+      where: { orderId, carrier: 'COSMOS' },
+    });
+    if (!f?.deliveryPartnerRef) return { ok: false, error: 'Pas de colis a supprimer' };
+
+    try {
+      const res = await fetch(
+        `${COSMOS_BASE}/orders?barcode=${f.deliveryPartnerRef}`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${config.token}` },
+        },
+      );
+      const data: any = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success) {
+        return { ok: false, error: data?.message ?? `HTTP ${res.status}` };
+      }
+
+      await this.prisma.fulfillment.delete({ where: { id: f.id } });
+      return { ok: true };
+    } catch (e: any) {
+      return { ok: false, error: e?.message };
+    }
+  }
+
   async trackOrder(storeId: string, barcode: string) {
     const config = await this.getConfig(storeId);
     if (!config?.token) return { ok: false, error: 'Cosmos non configure' };
-
     try {
       const res = await fetch(`${COSMOS_BASE}/orders?barcode=${barcode}`, {
         headers: { Authorization: `Bearer ${config.token}` },
@@ -250,5 +368,9 @@ export class CosmosService {
     } catch (e: any) {
       return { ok: false, error: e?.message };
     }
+  }
+
+  getCities() {
+    return COSMOS_CITIES;
   }
 }
