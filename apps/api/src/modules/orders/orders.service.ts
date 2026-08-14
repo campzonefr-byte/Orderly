@@ -1088,4 +1088,51 @@ export class OrdersService {
       },
     };
   }
+  async findByBarcode(raw: string) {
+    const value = raw.trim();
+
+    // QR Orderly (JSON)
+    if (value.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(value);
+        if (parsed.orderId) {
+          const o = await this.findOne(parsed.orderId);
+          if (o) return { ok: true, source: 'orderly-qr', order: o };
+        }
+      } catch {}
+    }
+
+    // Cosmos barcode via fulfillment
+    const fulfillment = await this.prisma.fulfillment.findFirst({
+      where: { deliveryPartnerRef: value },
+      select: { orderId: true },
+    });
+    if (fulfillment) {
+      const o = await this.findOne(fulfillment.orderId);
+      if (o) return { ok: true, source: 'cosmos-barcode', order: o };
+    }
+
+    // Order number (#27597 or 27597)
+    const withHash = value.startsWith('#') ? value : `#${value}`;
+    const byNumber = await this.prisma.order.findFirst({
+      where: { OR: [{ orderNumber: value }, { orderNumber: withHash }] },
+      select: { id: true },
+    });
+    if (byNumber) {
+      const o = await this.findOne(byNumber.id);
+      if (o) return { ok: true, source: 'order-number', order: o };
+    }
+
+    // Direct order id
+    const byId = await this.prisma.order.findUnique({
+      where: { id: value },
+      select: { id: true },
+    });
+    if (byId) {
+      const o = await this.findOne(byId.id);
+      if (o) return { ok: true, source: 'order-id', order: o };
+    }
+
+    return { ok: false, error: 'Aucune commande trouvee pour ce code' };
+  }
 }

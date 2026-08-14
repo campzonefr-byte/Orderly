@@ -168,6 +168,10 @@ getCustomers(
   prepareForPrint(@Param('id') id: string, @Request() req: any) {
     return this.orders.prepareForPrint(id, req.user.id);
   }
+  @Post('scan')
+  scan(@Body() body: { code: string }) {
+    return this.orders.findByBarcode(body.code ?? '');
+  }
   @Get(':id/events')
   getEvents(@Param('id') id: string) {
     return this.orders.getOrderEvents(id);
