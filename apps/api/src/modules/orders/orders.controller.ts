@@ -164,6 +164,10 @@ getCustomers(
       storeIds: storeIds ? storeIds.split(',') : undefined,
     });
   }
+  @Post(':id/prepare-print')
+  prepareForPrint(@Param('id') id: string, @Request() req: any) {
+    return this.orders.prepareForPrint(id, req.user.id);
+  }
   @Get(':id/events')
   getEvents(@Param('id') id: string) {
     return this.orders.getOrderEvents(id);

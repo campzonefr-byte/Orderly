@@ -680,6 +680,7 @@ function PreparationContent() {
   const [filter, setFilter] = useState<"all" | OrderStatus>("all");
   const [showCreate, setShowCreate] = useState(false);
   const [archiveOrder, setArchiveOrder] = useState<Order | null>(null);
+  const [printing, setPrinting] = useState<string | null>(null);
   const [period, setPeriod] = useState<Period>(getPeriodRange("all"));
   const [advFilters, setAdvFilters] = useState<AdvancedFilterState>(EMPTY_FILTERS);
 
@@ -726,9 +727,38 @@ function PreparationContent() {
 
   // Imprimer → EN_PREPARATION
   async function handlePrint(order: Order) {
-    openBordereau(order.id);
-    if (order.orderStatus === "A_PREPARER" || order.orderStatus === "ECHANGE") {
-      await changeStatus(order.id, "EN_PREPARATION");
+    setPrinting(order.id);
+    try {
+      const res = await fetch(`${API}/orders/${order.id}/prepare-print`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+
+      if (data.source === "cosmos" && data.labelUrl) {
+        window.open(data.labelUrl, "_blank");
+      } else {
+        if (data.cosmosError) {
+          alert(
+            `Colis Cosmos non cree : ${data.cosmosError}\n\n` +
+            `Le bordereau Orderly est utilise a la place.` +
+            (data.acceptedCities
+              ? `\n\nVilles acceptees : ${data.acceptedCities.join(", ")}`
+              : "")
+          );
+        }
+        openBordereau(order.id);
+      }
+
+      fetchOrders();
+    } catch {
+      openBordereau(order.id);
+    } finally {
+      setPrinting(null);
     }
   }
 
@@ -754,17 +784,58 @@ function PreparationContent() {
 
   async function printBulk() {
     const ids = Array.from(selectedIds);
-    ids.forEach((id, i) => {
-      setTimeout(() => openBordereau(id), i * 300);
-    });
+    setPrinting("bulk");
+    const cosmosBarcodes: string[] = [];
+    const fallback: string[] = [];
+
     for (const id of ids) {
       const order = orders.find((o) => o.id === id);
-      if (order && ["A_PREPARER", "ECHANGE"].includes(order.orderStatus)) {
-        await apiChangeStatus(id, "EN_PREPARATION");
+      if (!order) continue;
+      if (!["A_PREPARER", "ECHANGE"].includes(order.orderStatus)) continue;
+
+      try {
+        const res = await fetch(`${API}/orders/${id}/prepare-print`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${getToken()}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({}),
+        });
+        const data = await res.json();
+        if (data.source === "cosmos" && data.barcode) {
+          cosmosBarcodes.push(data.barcode);
+        } else {
+          fallback.push(id);
+        }
+      } catch {
+        fallback.push(id);
       }
     }
-    fetchOrders();
+
+    // Cosmos: one PDF with all labels
+    if (cosmosBarcodes.length > 0) {
+      window.open(
+        `https://api.cosmos.tn/api/v1/labels?barcode=${cosmosBarcodes.join(",")}&format=pdf`,
+        "_blank"
+      );
+    }
+
+    // Others: one tab each
+    fallback.forEach((id, i) => {
+      setTimeout(() => openBordereau(id), i * 300);
+    });
+
+    if (fallback.length > 0 && cosmosBarcodes.length > 0) {
+      alert(
+        `${cosmosBarcodes.length} bordereaux Cosmos generes.\n` +
+        `${fallback.length} bordereaux Orderly (Cosmos indisponible).`
+      );
+    }
+
+    setPrinting(null);
     setSelectedIds(new Set());
+    fetchOrders();
   }
 
   const filtered = orders.filter((o) => {
@@ -822,10 +893,17 @@ function PreparationContent() {
           <h1 className="text-base font-semibold">Préparation</h1>
           <div className="flex items-center gap-2">
             {selectedIds.size > 0 && (
-              <Button size="sm" variant="secondary" onClick={printBulk}>
-                <Printer className="h-3.5 w-3.5" />
-                Imprimer {selectedIds.size} bordereau{selectedIds.size > 1 ? "x" : ""}
-              </Button>
+             <Button
+             size="sm"
+             variant="secondary"
+             disabled={printing === "bulk"}
+             onClick={printBulk}
+           >
+             <Printer className="h-3.5 w-3.5" />
+             {printing === "bulk"
+               ? "Creation..."
+               : `Imprimer ${selectedIds.size} bordereau${selectedIds.size > 1 ? "x" : ""}`}
+           </Button>
             )}
             <Button size="sm" onClick={() => setShowCreate(true)}>
               <Plus className="h-3.5 w-3.5" />
@@ -998,9 +1076,13 @@ function PreparationContent() {
                       <div className="flex items-center gap-1.5">
                         {/* À PRÉPARER / ÉCHANGE → Imprimer → EN_PREPARATION */}
                         {(order.orderStatus === "A_PREPARER" || order.orderStatus === "ECHANGE") && (
-                          <Button size="sm" onClick={() => handlePrint(order)}>
+                          <Button
+                            size="sm"
+                            disabled={printing === order.id}
+                            onClick={() => handlePrint(order)}
+                          >
                             <Printer className="h-3.5 w-3.5" />
-                            Imprimer
+                            {printing === order.id ? "Creation..." : "Imprimer"}
                           </Button>
                         )}
 

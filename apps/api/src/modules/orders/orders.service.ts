@@ -520,14 +520,43 @@ export class OrdersService {
       },
     });
 
-    // Auto-create shipment at courier when order is printed
-    if (status === 'EN_PREPARATION' && order.deliveryCompany === 'Cosmos') {
-      this.cosmos.createShipment(orderId, actorId).catch((e) => {
-        console.warn('[cosmos] shipment creation failed:', e?.message);
-      });
+    return order;
+  }
+
+  // Print flow: create Cosmos shipment then return the right label
+  async prepareForPrint(orderId: string, actorId: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) return { ok: false, error: 'Commande introuvable' };
+
+    // Move to EN_PREPARATION if needed
+    if (order.orderStatus === 'A_PREPARER' || order.orderStatus === 'ECHANGE') {
+      await this.updateStatus(orderId, 'EN_PREPARATION', actorId);
     }
 
-    return order;
+    // Non-Cosmos store: use our own label
+    if (order.deliveryCompany !== 'Cosmos') {
+      return { ok: true, source: 'orderly', labelUrl: null };
+    }
+
+    const result = await this.cosmos.createShipment(orderId, actorId);
+
+    if (!result.ok) {
+      return {
+        ok: true,
+        source: 'orderly',
+        labelUrl: null,
+        cosmosError: result.error,
+        acceptedCities: (result as any).acceptedCities,
+      };
+    }
+
+    return {
+      ok: true,
+      source: 'cosmos',
+      barcode: (result as any).barcode,
+      labelUrl: (result as any).labelPdfUrl ?? (result as any).labelUrl ?? null,
+      alreadySent: (result as any).alreadySent ?? false,
+    };
   }
 
   async updateCallAttempts(orderId: string, callAttempts: any[]) {
