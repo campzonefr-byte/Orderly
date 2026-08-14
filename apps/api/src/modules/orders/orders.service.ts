@@ -550,11 +550,16 @@ export class OrdersService {
       };
     }
 
+    const barcode = (result as any).barcode;
+    const apiBase = process.env.PUBLIC_API_URL ?? '';
+
     return {
       ok: true,
       source: 'cosmos',
-      barcode: (result as any).barcode,
-      labelUrl: (result as any).labelPdfUrl ?? (result as any).labelUrl ?? null,
+      barcode,
+      labelUrl: barcode
+        ? `${apiBase}/api/delivery/cosmos/${order.storeId}/label?barcode=${barcode}&format=pdf`
+        : null,
       alreadySent: (result as any).alreadySent ?? false,
     };
   }

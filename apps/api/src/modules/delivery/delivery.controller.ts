@@ -2,6 +2,8 @@ import { Controller, Get, Post, Body, Param, Query, UseGuards, Request } from '@
 import { CosmosService } from './cosmos.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CosmosSyncService } from './cosmos-sync.service';
+import { Res, SetMetadata } from '@nestjs/common';
+import type { Response } from 'express';
 
 @UseGuards(JwtAuthGuard)
 @Controller('delivery')
@@ -10,7 +12,26 @@ export class DeliveryController {
     private cosmos: CosmosService,
     private sync: CosmosSyncService,
   ) {}
+  @Get('cosmos/:storeId/label')
+  @SetMetadata('isPublic', true)
+  async serveLabel(
+    @Param('storeId') storeId: string,
+    @Query('barcode') barcode: string,
+    @Query('format') format: string,
+    @Res() res: Response,
+  ) {
+    const fmt = format === 'html' ? 'html' : 'pdf';
+    const result: any = await this.cosmos.fetchLabel(storeId, barcode, fmt);
 
+    if (!result.ok) {
+      res.status(502).send(`Erreur bordereau Cosmos : ${result.error}`);
+      return;
+    }
+
+    res.setHeader('Content-Type', result.contentType);
+    res.setHeader('Content-Disposition', `inline; filename="label-${barcode}.${fmt}"`);
+    res.send(result.buffer);
+  }
   @Get('cosmos/:storeId/status')
   getStatus(@Param('storeId') storeId: string) {
     return this.cosmos.getStatus(storeId);

@@ -815,8 +815,9 @@ function PreparationContent() {
 
     // Cosmos: one PDF with all labels
     if (cosmosBarcodes.length > 0) {
+      const storeId = orders.find((o) => ids.includes(o.id))?.storeId;
       window.open(
-        `https://api.cosmos.tn/api/v1/labels?barcode=${cosmosBarcodes.join(",")}&format=pdf`,
+        `${API}/delivery/cosmos/${storeId}/label?barcode=${cosmosBarcodes.join(",")}&format=pdf`,
         "_blank"
       );
     }

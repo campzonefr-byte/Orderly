@@ -373,4 +373,28 @@ export class CosmosService {
   getCities() {
     return COSMOS_CITIES;
   }
+  async fetchLabel(storeId: string, barcode: string, format: 'html' | 'pdf' = 'pdf') {
+    const config = await this.getConfig(storeId);
+    if (!config?.token) return { ok: false, error: 'Cosmos non configure' };
+
+    try {
+      const res = await fetch(
+        `${COSMOS_BASE}/labels?barcode=${encodeURIComponent(barcode)}&format=${format}`,
+        { headers: { Authorization: `Bearer ${config.token}` } },
+      );
+
+      if (!res.ok) {
+        return { ok: false, error: `HTTP ${res.status}` };
+      }
+
+      const buffer = Buffer.from(await res.arrayBuffer());
+      return {
+        ok: true,
+        buffer,
+        contentType: res.headers.get('content-type') ?? (format === 'pdf' ? 'application/pdf' : 'text/html'),
+      };
+    } catch (e: any) {
+      return { ok: false, error: e?.message ?? 'Erreur reseau' };
+    }
+  }
 }
