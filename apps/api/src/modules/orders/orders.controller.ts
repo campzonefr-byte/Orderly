@@ -172,6 +172,10 @@ getCustomers(
   scan(@Body() body: { code: string }) {
     return this.orders.findByBarcode(body.code ?? '');
   }
+  @Get(':id/editability')
+  getEditability(@Param('id') id: string) {
+    return this.orders.getEditability(id);
+  }
   @Get(':id/events')
   getEvents(@Param('id') id: string) {
     return this.orders.getOrderEvents(id);

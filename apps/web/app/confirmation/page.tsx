@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   Phone, Search, X, ChevronLeft, ChevronRight,
-  Plus, Trash2, Edit2, Check, Building2, Calendar, Archive, Truck,Sparkles,ArrowRightLeft,
+  Plus, Trash2, Edit2, Check, Building2, Calendar, Archive, Truck,Sparkles,ArrowRightLeft,Lock, AlertTriangle,
 } from "lucide-react";
 import { Order, OrderStatus, CallAttempt } from "@/types/order";
 import { OrderStatusBadge } from "@/components/orders/status-badge";
@@ -597,7 +597,22 @@ function OrderModal({
 
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [editability, setEditability] = useState<any>(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API}/orders/${order.id}/editability`, {
+          headers: { Authorization: `Bearer ${getToken()}` },
+        });
+        setEditability(await res.json());
+      } catch {
+        setEditability({ editable: true });
+      }
+    })();
+  }, [order.id]);
 
+  const isLocked = editability && editability.editable === false;
+  const willRecreate = editability?.willRecreateParcel === true;
   const total = lineItems.reduce((s, li) => s + li.price * li.quantity, 0);
 
   function updateLineItem(idx: number, field: string, value: any) {
@@ -613,7 +628,9 @@ function OrderModal({
   }
 
   async function saveOrder() {
-    await fetch(`${API}/orders/${order.id}`, {
+    if (isLocked) return { ok: false, locked: true };
+
+    const res = await fetch(`${API}/orders/${order.id}`, {
       method: "PATCH",
       headers: {
         Authorization: `Bearer ${getToken()}`,
@@ -635,12 +652,36 @@ function OrderModal({
       }),
     });
 
-    // Notify mentioned users
+    const data = await res.json();
+
+    if (data.locked) {
+      alert(data.error);
+      return data;
+    }
+
+    if (data.recreated) {
+      if (data.recreated.ok) {
+        alert(
+          `Le colis Cosmos a ete recree.\n\n` +
+          `Nouveau code-barres : ${data.recreated.newBarcode}\n\n` +
+          `Le bordereau doit etre reimprime.`
+        );
+      } else {
+        alert(
+          `Attention : le colis Cosmos n'a pas pu etre mis a jour.\n\n` +
+          `${data.recreated.error}\n\n` +
+          `Verifiez chez Cosmos avant expedition.`
+        );
+      }
+    }
+
     await processMentions(internalNote, {
       link: "/confirmation",
       orderId: order.id,
       orderNumber: order.orderNumber,
     });
+
+    return data;
   }
 
   async function logAttempt(cancelReason?: string, cancelNote?: string, deliveryCompany?: string, scheduledDate?: string) {
@@ -775,6 +816,32 @@ function OrderModal({
           </div>
 
           <div className="flex-1 overflow-y-auto">
+            {isLocked && (
+              <div className="flex items-start gap-2.5 border-b border-status-cancelled/30 bg-status-cancelled-bg px-5 py-3">
+                <Lock className="mt-0.5 h-4 w-4 shrink-0 text-status-cancelled" />
+                <div className="text-xs text-status-cancelled">
+                  <p className="font-semibold">Modification impossible</p>
+                  <p className="mt-0.5">
+                    {editability?.reason}. Contactez directement le transporteur.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {!isLocked && willRecreate && (
+              <div className="flex items-start gap-2.5 border-b border-status-processing/30 bg-status-processing-bg px-5 py-3">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-status-processing" />
+                <div className="text-xs text-status-processing">
+                  <p className="font-semibold">Colis deja cree chez le transporteur</p>
+                  <p className="mt-0.5">
+                    Toute modification supprimera et recreera le colis
+                    {editability?.barcode && ` (${editability.barcode})`}.
+                    Le bordereau devra etre reimprime.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 divide-x divide-border">
 
               {/* LEFT — Edit order */}
@@ -784,26 +851,26 @@ function OrderModal({
                 <div className="space-y-2.5">
                   <div>
                     <label className="mb-1 block text-xs font-medium text-muted">Nom client</label>
-                    <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Nom complet" />
+                    <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Nom complet" disabled={isLocked} />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="mb-1 block text-xs font-medium text-muted">Téléphone 1</label>
-                      <Input value={phone1} onChange={(e) => setPhone1(e.target.value)} placeholder="+216 XX XXX XXX" />
+                      <Input value={phone1} onChange={(e) => setPhone1(e.target.value)} placeholder="+216 XX XXX XXX" disabled={isLocked} />
                     </div>
                     <div>
                       <label className="mb-1 block text-xs font-medium text-muted">Téléphone 2</label>
-                      <Input value={phone2} onChange={(e) => setPhone2(e.target.value)} placeholder="+216 XX XXX XXX" />
+                      <Input value={phone2} onChange={(e) => setPhone2(e.target.value)} placeholder="+216 XX XXX XXX" disabled={isLocked} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="mb-1 block text-xs font-medium text-muted">Ville</label>
-                      <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Tunis" />
+                      <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Tunis" disabled={isLocked} />
                     </div>
                     <div>
                       <label className="mb-1 block text-xs font-medium text-muted">Adresse</label>
-                      <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Rue..." />
+                      <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Rue..." disabled={isLocked} />
                     </div>
                   </div>
                 </div>
@@ -811,7 +878,7 @@ function OrderModal({
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-medium text-muted">Produits</label>
-                    <button onClick={addLineItem} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                    <button onClick={addLineItem} disabled={isLocked} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-40">
                       <Plus className="h-3 w-3" /> Ajouter
                     </button>
                   </div>
@@ -981,12 +1048,12 @@ function OrderModal({
           </div>
 
           <div className="flex gap-2 border-t border-border px-5 py-4">
-            <Button variant="secondary" onClick={onClose}>Annuler</Button>
-            <Button variant="outline" onClick={handleSaveOnly} disabled={loading}>
+            <Button variant="secondary" onClick={onClose}>Fermer</Button>
+            <Button variant="outline" onClick={handleSaveOnly} disabled={loading || isLocked}>
               <Edit2 className="h-3.5 w-3.5" />
               Sauvegarder
             </Button>
-            <Button className="flex-1" disabled={loading || !callPhone} onClick={handleLog}>
+            <Button className="flex-1" disabled={loading || !callPhone || isLocked} onClick={handleLog}>
               <Phone className="h-3.5 w-3.5" />
               {loading ? "Enregistrement..." : `Logger tentative ${attempts.length + 1}`}
             </Button>

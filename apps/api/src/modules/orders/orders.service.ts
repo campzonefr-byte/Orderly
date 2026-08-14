@@ -416,17 +416,42 @@ export class OrdersService {
       }).length,
     };
   }
-  async updateOrder(
-    orderId: string,
-    data: any,
-    actorId: string,
-  ) {
-    const existing = await this.prisma.order.findUnique({ where: { id: orderId } });
+  async updateOrder(orderId: string, data: any, actorId: string) {
+    const existing = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { fulfillments: { where: { carrier: 'COSMOS' }, take: 1 } },
+    });
     if (!existing) throw new Error('Order not found');
+
+    // Locked once the parcel is with the courier
+    const lockedStatuses: OrderStatus[] = [
+      'AU_DEPOT_LIVREUR', 'EN_COURS_DE_LIVRAISON', 'LIVRE',
+      'PAYE', 'RETOUR', 'RETOUR_DEPOT', 'RETOUR_RECU',
+    ];
+    if (lockedStatuses.includes(existing.orderStatus)) {
+      return {
+        ok: false,
+        locked: true,
+        error:
+          'Cette commande est deja chez le transporteur. Contactez-le directement pour toute modification.',
+      };
+    }
+
+    // Fields that require recreating the Cosmos parcel
+    const shipmentFields = [
+      'customerName', 'customerPhone', 'customerPhone2',
+      'shippingAddress', 'lineItems',
+    ];
+    const touchesShipment = shipmentFields.some((f) => data[f] !== undefined);
+    const cosmosParcel = existing.fulfillments[0];
+    const needsRecreate = touchesShipment && !!cosmosParcel?.deliveryPartnerRef;
 
     let subtotal = Number(existing.subtotal);
     if (data.lineItems) {
-      subtotal = data.lineItems.reduce((s: number, li: any) => s + li.price * li.quantity, 0);
+      subtotal = data.lineItems.reduce(
+        (s: number, li: any) => s + li.price * li.quantity,
+        0,
+      );
     }
 
     const updated = await this.prisma.order.update({
@@ -439,7 +464,9 @@ export class OrdersService {
         ...(data.internalNote !== undefined && { internalNote: data.internalNote }),
         ...(data.deliveryCompany !== undefined && { deliveryCompany: data.deliveryCompany }),
         ...(data.scheduledDeliveryDate !== undefined && {
-          scheduledDeliveryDate: data.scheduledDeliveryDate ? new Date(data.scheduledDeliveryDate) : null,
+          scheduledDeliveryDate: data.scheduledDeliveryDate
+            ? new Date(data.scheduledDeliveryDate)
+            : null,
         }),
         ...(data.tags !== undefined && { tags: data.tags }),
         ...(data.lineItems && {
@@ -471,7 +498,34 @@ export class OrdersService {
       },
     });
 
-    return updated;
+    // Recreate the Cosmos parcel with fresh data
+    let recreated: any = null;
+    if (needsRecreate) {
+      const del = await this.cosmos.deleteShipment(orderId);
+      if (del.ok) {
+        const created: any = await this.cosmos.createShipment(orderId, actorId);
+        recreated = {
+          ok: created.ok,
+          newBarcode: created.barcode ?? null,
+          error: created.error ?? null,
+        };
+        await this.prisma.orderEvent.create({
+          data: {
+            orderId,
+            eventType: 'cosmos_shipment_recreated',
+            payload: {
+              oldBarcode: cosmosParcel.deliveryPartnerRef,
+              newBarcode: created.barcode ?? null,
+            },
+            actor: actorId,
+          },
+        });
+      } else {
+        recreated = { ok: false, error: del.error };
+      }
+    }
+
+    return { ok: true, order: updated, recreated };
   }
 
   async updateStatus(
@@ -1139,5 +1193,32 @@ export class OrdersService {
     }
 
     return { ok: false, error: 'Aucune commande trouvee pour ce code' };
+  }
+  async getEditability(orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { fulfillments: { where: { carrier: 'COSMOS' }, take: 1 } },
+    });
+    if (!order) return { editable: false, reason: 'Commande introuvable' };
+
+    const locked: OrderStatus[] = [
+      'AU_DEPOT_LIVREUR', 'EN_COURS_DE_LIVRAISON', 'LIVRE',
+      'PAYE', 'RETOUR', 'RETOUR_DEPOT', 'RETOUR_RECU',
+    ];
+
+    if (locked.includes(order.orderStatus)) {
+      return {
+        editable: false,
+        reason: 'Colis deja chez le transporteur',
+        status: order.orderStatus,
+      };
+    }
+
+    const hasParcel = !!order.fulfillments[0]?.deliveryPartnerRef;
+    return {
+      editable: true,
+      willRecreateParcel: hasParcel,
+      barcode: order.fulfillments[0]?.deliveryPartnerRef ?? null,
+    };
   }
 }
