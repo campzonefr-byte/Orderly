@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CosmosService } from './cosmos.service';
 
@@ -13,7 +13,7 @@ export class CosmosSyncService {
     private cosmos: CosmosService,
   ) {}
 
-  @Cron(CronExpression.EVERY_15_MINUTES)
+  @Cron('0 */15 * * * *')
   async handleCron() {
     if (this.running) {
       this.logger.warn('Sync deja en cours, on saute ce cycle');
