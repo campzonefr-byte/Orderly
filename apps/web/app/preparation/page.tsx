@@ -27,7 +27,7 @@ import { TagBadge } from "@/components/orders/tag-picker";
 import {
   Search, ChevronLeft, ChevronRight, Package,
   CheckCircle2, X, Printer, Archive, Plus, Truck,
-  Calendar, Phone, MapPin, History,
+  Calendar, Phone, MapPin, History,Lock,
 } from "lucide-react";
 import { Order, OrderStatus } from "@/types/order";
 
@@ -645,17 +645,13 @@ function OrderDetailModal({
               Imprimer
             </Button>
           )}
-          {order.orderStatus === "EN_PREPARATION" && (
-            <Button onClick={() => { onChangeStatus("EMBALLE"); onClose(); }}>
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Emballé
-            </Button>
-          )}
-          {order.orderStatus === "EMBALLE" && (
-            <Button onClick={() => { onChangeStatus("AU_DEPOT_LIVREUR"); onClose(); }}>
-              <Truck className="h-3.5 w-3.5" />
-              Au dépôt
-            </Button>
+          {(order.orderStatus === "EN_PREPARATION" || order.orderStatus === "EMBALLE") && (
+            <span className="flex items-center gap-1.5 self-center text-xs text-muted">
+              <Lock className="h-3.5 w-3.5" />
+              {order.orderStatus === "EN_PREPARATION"
+                ? "En attente du scan d'emballage"
+                : "Prêt pour ramassage"}
+            </span>
           )}
           <Button variant="destructive" onClick={() => { onArchive(); onClose(); }}>
             <Archive className="h-3.5 w-3.5" />
@@ -1090,26 +1086,36 @@ function PreparationContent() {
                         {/* EN PRÉPARATION → attend scan, ou forcer Emballé */}
                         {order.orderStatus === "EN_PREPARATION" && (
                           <>
-                            <Button size="sm" variant="secondary" onClick={() => changeStatus(order.id, "EMBALLE")}>
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              Emballé
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => openBordereau(order.id)}>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              disabled={printing === order.id}
+                              onClick={() => handlePrint(order)}
+                            >
                               <Printer className="h-3.5 w-3.5" />
+                              Réimprimer
                             </Button>
+                            <span className="text-[11px] text-muted">
+                              en attente du scan
+                            </span>
                           </>
                         )}
 
                         {/* EMBALLÉ → au dépôt livreur */}
                         {order.orderStatus === "EMBALLE" && (
                           <>
-                            <Button size="sm" variant="secondary" onClick={() => changeStatus(order.id, "AU_DEPOT_LIVREUR")}>
-                              <Truck className="h-3.5 w-3.5" />
-                              Au dépôt
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => openBordereau(order.id)}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={printing === order.id}
+                              onClick={() => handlePrint(order)}
+                            >
                               <Printer className="h-3.5 w-3.5" />
                             </Button>
+                            <span className="flex items-center gap-1 text-[11px] text-status-shipped">
+                              <CheckCircle2 className="h-3 w-3" />
+                              prêt pour ramassage
+                            </span>
                           </>
                         )}
 
