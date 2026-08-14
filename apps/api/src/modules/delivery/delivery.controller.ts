@@ -1,17 +1,24 @@
 import { Controller, Get, Post, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { CosmosService } from './cosmos.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CosmosSyncService } from './cosmos-sync.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('delivery')
 export class DeliveryController {
-  constructor(private cosmos: CosmosService) {}
+  constructor(
+    private cosmos: CosmosService,
+    private sync: CosmosSyncService,
+  ) {}
 
   @Get('cosmos/:storeId/status')
   getStatus(@Param('storeId') storeId: string) {
     return this.cosmos.getStatus(storeId);
   }
-
+  @Post('cosmos/sync-all')
+  syncAll() {
+    return this.sync.runNow();
+  }
   @Post('cosmos/:storeId/config')
   saveConfig(
     @Param('storeId') storeId: string,
