@@ -260,7 +260,7 @@ export function ImportProductsModal({
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-status-cancelled" />
               <div className="text-xs text-status-cancelled">
                 <p className="font-semibold">{error}</p>
-                <p className="mt-0.5">
+                               <p className="mt-0.5">
                   {providerFor(stores.find((s) => s.id === storeId)?.sourceType) === "shopify"
                     ? "Verifiez le domaine et l'access token Shopify dans la page Integrations. Le token doit avoir la permission read_products."
                     : "Verifiez que ce magasin est bien connecte a Converty dans la page Magasins."}
