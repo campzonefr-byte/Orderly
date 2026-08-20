@@ -333,9 +333,24 @@ function ProductsContent() {
                     onClick={() => setOpenId(p.id)}
                                         className="group cursor-pointer border-b border-border transition-colors hover:bg-surface-sunken"
                   >
-                    <td className="px-4 py-3">
-                      <p className="truncate max-w-[220px] text-sm font-medium">{p.name}</p>
-                      <p className="font-mono text-[11px] text-muted">{p.sku}</p>
+                                       <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        {p.imageUrl ? (
+                          <img
+                            src={p.imageUrl}
+                            alt=""
+                            className="h-10 w-10 shrink-0 rounded-md border border-border object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-surface-sunken">
+                            <Package className="h-4 w-4 text-muted-light" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="truncate max-w-[200px] text-sm font-medium">{p.name}</p>
+                          <p className="font-mono text-[11px] text-muted">{p.sku}</p>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-xs text-muted">{p.storeName}</td>
                     <td className="px-4 py-3">
