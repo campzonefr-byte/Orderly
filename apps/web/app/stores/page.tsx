@@ -289,7 +289,8 @@ function StoreCard({
   const [convertyStatus, setConvertyStatus] = useState<any>(null);
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-
+  const [shopifyStatus, setShopifyStatus] = useState<any>(null);
+  const [shopDomain, setShopDomain] = useState("");
   const isConverty = store.sourceType === "MARKETPLACE";
   const isShopify = store.sourceType === "SHOPIFY";
 
@@ -303,9 +304,82 @@ function StoreCard({
     } catch {}
   }, [store.id, isConverty]);
 
+  const fetchShopify = useCallback(async () => {
+    if (!isShopify) return;
+    try {
+      const res = await fetch(`${API}/integrations/shopify/${store.id}/status`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const data = await res.json();
+      setShopifyStatus(data);
+      if (data?.domain) setShopDomain(data.domain);
+    } catch {}
+  }, [store.id, isShopify]);
+
   useEffect(() => {
     fetchConverty();
-  }, [fetchConverty]);
+    fetchShopify();
+  }, [fetchConverty, fetchShopify]);
+
+  async function connectShopify() {
+    if (!shopDomain.trim()) {
+      setMsg({ ok: false, text: "Saisissez le domaine .myshopify.com" });
+      return;
+    }
+    setBusy("shopify-connect");
+    try {
+      const res = await fetch(`${API}/integrations/shopify/${store.id}/auth-url`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ shopDomain: shopDomain.trim() }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setMsg({ ok: false, text: data.error ?? "Erreur" });
+        return;
+      }
+      window.location.href = data.url;
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function runShopify(action: string, label: string) {
+    setBusy(action);
+    setMsg(null);
+    try {
+      const res = await fetch(`${API}/integrations/shopify/${store.id}/${action}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setMsg({
+          ok: true,
+          text:
+            action === "test"
+              ? `Connecte a ${data.shop ?? "la boutique"}`
+              : action === "register-webhooks"
+              ? "Webhooks enregistres"
+              : `${label} : ${data.created ?? 0} crees, ${data.updated ?? 0} mis a jour`,
+        });
+      } else {
+        setMsg({ ok: false, text: data.error ?? "Echec" });
+      }
+      fetchShopify();
+    } catch {
+      setMsg({ ok: false, text: "Erreur reseau" });
+    } finally {
+      setBusy("");
+    }
+  }
 
   async function connectConverty() {
     setBusy("connect");
@@ -460,9 +534,93 @@ function StoreCard({
         </div>
       )}
 
-      {isShopify && (
-        <div className="mt-4 rounded-lg bg-surface-sunken px-3 py-2.5 text-[11px] text-muted">
-          <p>Configurez le token et les webhooks depuis la page Integrations.</p>
+{isShopify && (
+        <div className="mt-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                "flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium",
+                shopifyStatus?.connected
+                  ? "bg-status-delivered-bg text-status-delivered"
+                  : "bg-status-onhold-bg text-muted"
+              )}
+            >
+              {shopifyStatus?.connected ? (
+                <CheckCircle2 className="h-3 w-3" />
+              ) : (
+                <XCircle className="h-3 w-3" />
+              )}
+              {shopifyStatus?.connected ? "Connecte" : "Non connecte"}
+            </span>
+            {shopifyStatus?.domain && (
+              <span className="font-mono text-[11px] text-muted">
+                {shopifyStatus.domain}
+              </span>
+            )}
+          </div>
+
+          {shopifyStatus?.connected ? (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={busy !== ""}
+                onClick={() => runShopify("test", "Test")}
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", busy === "test" && "animate-spin")} />
+                Tester
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={busy !== ""}
+                onClick={() => runShopify("import-all-products", "Produits")}
+              >
+                <Download className="h-3.5 w-3.5" />
+                {busy === "import-all-products" ? "Import..." : "Importer produits"}
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={busy !== ""}
+                onClick={() => runShopify("register-webhooks", "Webhooks")}
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", busy === "register-webhooks" && "animate-spin")} />
+                Webhooks
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Input
+                value={shopDomain}
+                onChange={(e) => setShopDomain(e.target.value)}
+                placeholder="votre-boutique.myshopify.com"
+                className="h-8 text-xs"
+              />
+              <Button
+                size="sm"
+                className="w-full"
+                disabled={busy !== "" || !shopDomain.trim()}
+                onClick={connectShopify}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                {busy === "shopify-connect" ? "Redirection..." : "Connecter Shopify"}
+              </Button>
+            </div>
+          )}
+
+          {msg && (
+            <p
+              className={cn(
+                "rounded-md px-3 py-2 text-xs font-medium",
+                msg.ok
+                  ? "bg-status-delivered-bg text-status-delivered"
+                  : "bg-status-cancelled-bg text-status-cancelled"
+              )}
+            >
+              {msg.text}
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -489,6 +647,10 @@ function StoresContent() {
     const c = searchParams.get("converty");
     if (c === "connected") setBanner({ ok: true, text: "Converty connecte avec succes" });
     if (c === "error") setBanner({ ok: false, text: "Echec de la connexion Converty" });
+
+    const s = searchParams.get("shopify");
+    if (s === "connected") setBanner({ ok: true, text: "Shopify connecte avec succes" });
+    if (s === "error") setBanner({ ok: false, text: "Echec de la connexion Shopify" });
   }, [searchParams]);
 
   return (
