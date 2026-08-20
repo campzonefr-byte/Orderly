@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
-  Plus, Package, Trash2, Edit2, Check, X, Search, AlertTriangle, History,
+  Search, Package, Plus, X, Download, AlertTriangle,
+  ChevronLeft, ChevronRight, Calendar,
 } from "lucide-react";
+import { ProductModal } from "@/components/products/product-modal";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 
@@ -18,603 +20,215 @@ function getToken() {
   return window.localStorage.getItem("orderly_token");
 }
 
-interface Product {
-  id: string;
-  storeId: string;
-  sku: string;
-  name: string;
-  quantityAvailable: number;
-  reservedQty: number;
-  lowStockThreshold: number;
-  createdAt: string;
-  updatedAt: string;
-}
+const PAGE_SIZE = 30;
 
-interface InventoryLog {
-  id: string;
-  type: string;
-  quantityChange: number;
-  quantityBefore: number;
-  quantityAfter: number;
-  note: string | null;
-  actor: string | null;
-  createdAt: string;
-}
+const STATUS_STYLE: Record<string, string> = {
+  OK: "bg-status-delivered-bg text-status-delivered",
+  SOON: "bg-status-processing-bg text-status-processing",
+  LOW: "bg-status-processing-bg text-status-processing",
+  OUT: "bg-status-cancelled-bg text-status-cancelled",
+};
 
-function AddProductModal({
-  storeId,
+const STATUS_LABEL: Record<string, string> = {
+  OK: "En stock",
+  SOON: "Bientot epuise",
+  LOW: "Stock bas",
+  OUT: "Rupture",
+};
+
+function CreateProductModal({
+  stores,
   onClose,
-  onAdded,
+  onCreated,
 }: {
-  storeId: string;
+  stores: { id: string; name: string }[];
   onClose: () => void;
-  onAdded: () => void;
+  onCreated: () => void;
 }) {
-  const [name, setName] = useState("");
+  const [storeId, setStoreId] = useState(stores[0]?.id ?? "");
   const [sku, setSku] = useState("");
-  const [stock, setStock] = useState("0");
+  const [name, setName] = useState("");
+  const [qty, setQty] = useState("0");
   const [threshold, setThreshold] = useState("5");
+  const [cost, setCost] = useState("");
+  const [sell, setSell] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
-  async function handleAdd() {
-    if (!name.trim() || !sku.trim()) {
-      setError("Name and SKU are required.");
-      return;
-    }
+  async function create() {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/stores/${storeId}/sync-products`, {
+      await fetch(`${API}/products`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${getToken()}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          products: [{
-            externalId: sku,
-            name: name.trim(),
-            sku: sku.trim(),
-            initialStock: parseInt(stock) || 0,
-            threshold: parseInt(threshold) || 5,
-          }],
+          storeId,
+          sku: sku.trim(),
+          name: name.trim(),
+          quantityAvailable: parseInt(qty) || 0,
+          lowStockThreshold: parseInt(threshold) || 5,
+          costPrice: cost ? parseFloat(cost) : undefined,
+          sellPrice: sell ? parseFloat(sell) : undefined,
         }),
       });
-      if (!res.ok) throw new Error("Failed to add product");
-      onAdded();
+      onCreated();
       onClose();
-    } catch {
-      setError("Failed to add product. Try again.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
       <div className="w-full max-w-md rounded-xl border border-border bg-surface shadow-2xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-sm font-semibold">Add product</h2>
+          <h2 className="text-sm font-semibold">Nouveau produit</h2>
           <button onClick={onClose} className="rounded-md p-1 hover:bg-surface-sunken">
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="space-y-4 p-5">
+
+        <div className="space-y-3 p-5">
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted">Product name</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Collagen Mask" autoFocus />
+            <label className="mb-1 block text-xs font-medium text-muted">Magasin</label>
+            <select
+              value={storeId}
+              onChange={(e) => setStoreId(e.target.value)}
+              className="h-9 w-full rounded-md border border-border bg-surface px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              {stores.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
           </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted">SKU</label>
-            <Input
-              value={sku}
-              onChange={(e) => setSku(e.target.value)}
-              placeholder="masquecollagene"
-              className="font-mono"
-            />
-            <p className="mt-1 text-[11px] text-muted">Must match exactly the SKU in your Shopify orders</p>
-          </div>
+
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted">Initial stock</label>
-              <Input type="number" value={stock} onChange={(e) => setStock(e.target.value)} min={0} />
+            <div className="col-span-2">
+              <label className="mb-1 block text-xs font-medium text-muted">Nom</label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+            </div>
+            <div className="col-span-2">
+              <label className="mb-1 block text-xs font-medium text-muted">SKU</label>
+              <Input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="SKU-001" />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted">Alert threshold</label>
+              <label className="mb-1 block text-xs font-medium text-muted">Stock initial</label>
+              <Input type="number" value={qty} onChange={(e) => setQty(e.target.value)} min={0} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted">Seuil alerte</label>
               <Input type="number" value={threshold} onChange={(e) => setThreshold(e.target.value)} min={0} />
             </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted">Prix achat</label>
+              <Input type="number" value={cost} onChange={(e) => setCost(e.target.value)} step="0.001" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted">Prix vente</label>
+              <Input type="number" value={sell} onChange={(e) => setSell(e.target.value)} step="0.001" />
+            </div>
           </div>
-          {error && (
-            <p className="rounded-md bg-status-cancelled-bg px-3 py-2 text-xs font-medium text-status-cancelled">
-              {error}
-            </p>
-          )}
         </div>
+
         <div className="flex gap-2 border-t border-border px-5 py-4">
-          <Button variant="secondary" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button className="flex-1" disabled={loading} onClick={handleAdd}>
-            {loading ? "Adding..." : "Add product"}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StockAdjustModal({
-  product,
-  mode,
-  onClose,
-  onDone,
-}: {
-  product: Product;
-  mode: "add" | "remove";
-  onClose: () => void;
-  onDone: () => void;
-}) {
-  const [qty, setQty] = useState("0");
-  const [note, setNote] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  async function handleSave() {
-    const n = parseInt(qty);
-    if (isNaN(n) || n <= 0) { setError("Enter a valid quantity."); return; }
-    setLoading(true);
-    try {
-      const newQty = mode === "add"
-        ? product.quantityAvailable + n
-        : Math.max(0, product.quantityAvailable - n);
-      await fetch(`${API}/stores/products/${product.id}`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          quantityAvailable: newQty,
-          note: note.trim() || undefined,
-        }),
-      });
-      onDone();
-      onClose();
-    } catch {
-      setError("Failed to update stock.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
-      <div className="w-full max-w-sm rounded-xl border border-border bg-surface shadow-2xl">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-sm font-semibold">
-            {mode === "add" ? "Add stock" : "Remove stock"} — {product.name}
-          </h2>
-          <button onClick={onClose} className="rounded-md p-1 hover:bg-surface-sunken">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="p-5 space-y-4">
-          <div className="rounded-lg bg-surface-sunken px-4 py-3 text-sm">
-            <span className="text-muted">Current stock: </span>
-            <span className="font-semibold">{product.quantityAvailable}</span>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted">
-              Units to {mode === "add" ? "add" : "remove"}
-            </label>
-            <Input
-              type="number"
-              value={qty}
-              onChange={(e) => setQty(e.target.value)}
-              min={1}
-              autoFocus
-            />
-            {qty && parseInt(qty) > 0 && (
-              <p className="mt-1 text-[11px] text-muted">
-                New stock will be:{" "}
-                <span className="font-medium text-foreground">
-                  {mode === "add"
-                    ? product.quantityAvailable + parseInt(qty)
-                    : Math.max(0, product.quantityAvailable - parseInt(qty))}
-                </span>
-              </p>
-            )}
-          </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted">
-              Note (optional)
-            </label>
-            <Input
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. New shipment received"
-            />
-          </div>
-          {error && (
-            <p className="rounded-md bg-status-cancelled-bg px-3 py-2 text-xs font-medium text-status-cancelled">
-              {error}
-            </p>
-          )}
-        </div>
-        <div className="flex gap-2 border-t border-border px-5 py-4">
-          <Button variant="secondary" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button variant="secondary" className="flex-1" onClick={onClose}>Annuler</Button>
           <Button
             className="flex-1"
-            variant={mode === "remove" ? "destructive" : "default"}
-            disabled={loading}
-            onClick={handleSave}
+            disabled={loading || !name.trim() || !sku.trim()}
+            onClick={create}
           >
-            {loading ? "Saving..." : mode === "add" ? "Add stock" : "Remove stock"}
+            {loading ? "..." : "Creer"}
           </Button>
         </div>
       </div>
     </div>
-  );
-}
-
-function HistoryModal({
-  product,
-  onClose,
-}: {
-  product: Product;
-  onClose: () => void;
-}) {
-  const [logs, setLogs] = useState<InventoryLog[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch(`${API}/stores/products/${product.id}/logs`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    })
-      .then((r) => r.json())
-      .then((data) => { setLogs(data); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [product.id]);
-
-  const TYPE_LABELS: Record<string, string> = {
-    manual_add: "Manual add",
-    manual_remove: "Manual remove",
-    order_fulfilled: "Order fulfilled",
-    order_cancelled: "Order cancelled",
-    order_returned: "Order returned",
-    set: "Stock set",
-  };
-
-  const TYPE_COLORS: Record<string, string> = {
-    manual_add: "text-status-delivered",
-    manual_remove: "text-status-cancelled",
-    order_fulfilled: "text-status-cancelled",
-    order_cancelled: "text-status-delivered",
-    order_returned: "text-status-delivered",
-    set: "text-status-new",
-  };
-
-  function formatDate(iso: string) {
-    return new Date(iso).toLocaleString("en-US", {
-      month: "short", day: "numeric", year: "numeric",
-      hour: "numeric", minute: "2-digit",
-    });
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
-      <div className="w-full max-w-2xl rounded-xl border border-border bg-surface shadow-2xl max-h-[80vh] flex flex-col">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <div>
-            <h2 className="text-sm font-semibold">Inventory history — {product.name}</h2>
-            <p className="text-xs text-muted font-mono">{product.sku}</p>
-          </div>
-          <button onClick={onClose} className="rounded-md p-1 hover:bg-surface-sunken">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <p className="text-sm text-muted">Loading history...</p>
-            </div>
-          ) : logs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <History className="h-8 w-8 text-muted-light" />
-              <p className="mt-2 text-sm font-medium">No history yet</p>
-              <p className="mt-1 text-xs text-muted">Stock changes will appear here.</p>
-            </div>
-          ) : (
-            <table className="w-full border-collapse text-sm">
-              <thead className="sticky top-0 bg-surface">
-                <tr className="border-b border-border text-left text-xs font-medium text-muted">
-                  <th className="px-5 py-2.5">Date</th>
-                  <th className="px-4 py-2.5">Type</th>
-                  <th className="px-4 py-2.5">Change</th>
-                  <th className="px-4 py-2.5">Before</th>
-                  <th className="px-4 py-2.5">After</th>
-                  <th className="px-4 py-2.5">Note</th>
-                  <th className="px-4 py-2.5">By</th>
-                </tr>
-              </thead>
-              <tbody>
-                {logs.map((log) => (
-                  <tr key={log.id} className="border-b border-border hover:bg-surface-sunken">
-                    <td className="px-5 py-2.5 text-xs text-muted whitespace-nowrap">
-                      {formatDate(log.createdAt)}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span className={cn("text-xs font-medium", TYPE_COLORS[log.type] ?? "text-muted")}>
-                        {TYPE_LABELS[log.type] ?? log.type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span className={cn(
-                        "font-mono text-xs font-semibold",
-                        log.quantityChange > 0 ? "text-status-delivered" : "text-status-cancelled"
-                      )}>
-                        {log.quantityChange > 0 ? `+${log.quantityChange}` : log.quantityChange}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-muted">{log.quantityBefore}</td>
-                    <td className="px-4 py-2.5 font-mono text-xs font-medium">{log.quantityAfter}</td>
-                    <td className="px-4 py-2.5 text-xs text-muted">{log.note ?? "—"}</td>
-                    <td className="px-4 py-2.5 text-xs text-muted">
-                      {(log as any).actorName ?? log.actor ?? "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        <div className="border-t border-border px-5 py-4">
-          <Button variant="secondary" onClick={onClose}>Close</Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ProductRow({
-  product,
-  onDelete,
-  onUpdate,
-  onAdd,
-  onRemove,
-  onHistory,
-}: {
-  product: Product;
-  onDelete: (id: string) => void;
-  onUpdate: (id: string, data: Partial<Product>) => void;
-  onAdd: (product: Product) => void;
-  onRemove: (product: Product) => void;
-  onHistory: (product: Product) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [stock, setStock] = useState(String(product.quantityAvailable));
-  const [threshold, setThreshold] = useState(String(product.lowStockThreshold));
-  const [name, setName] = useState(product.name);
-
-  const isLow = product.quantityAvailable <= product.lowStockThreshold;
-  const isOut = product.quantityAvailable === 0;
-
-  async function save() {
-    await onUpdate(product.id, {
-      name,
-      quantityAvailable: parseInt(stock) || 0,
-      lowStockThreshold: parseInt(threshold) || 0,
-    });
-    setEditing(false);
-  }
-
-  function cancel() {
-    setStock(String(product.quantityAvailable));
-    setThreshold(String(product.lowStockThreshold));
-    setName(product.name);
-    setEditing(false);
-  }
-
-  return (
-    <tr className={cn(
-      "border-b border-border transition-colors hover:bg-surface-sunken",
-      isOut && "bg-status-cancelled-bg/20",
-    )}>
-      <td className="px-5 py-3">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-surface-sunken">
-            <Package className="h-4 w-4 text-muted-light" />
-          </div>
-          {editing ? (
-            <Input value={name} onChange={(e) => setName(e.target.value)} className="h-7 text-xs" />
-          ) : (
-            <span className="text-sm font-medium">{product.name}</span>
-          )}
-        </div>
-      </td>
-
-      <td className="px-4 py-3">
-        <span className="font-mono text-xs text-muted">{product.sku}</span>
-      </td>
-
-      <td className="px-4 py-3">
-        {editing ? (
-          <Input
-            type="number"
-            value={stock}
-            onChange={(e) => setStock(e.target.value)}
-            className="h-7 w-24 text-xs"
-            min={0}
-          />
-        ) : (
-          <div className="flex items-center gap-2">
-            <span className={cn(
-              "text-sm font-semibold",
-              isOut ? "text-status-cancelled" :
-              isLow ? "text-status-processing" :
-              "text-status-delivered"
-            )}>
-              {product.quantityAvailable}
-            </span>
-            {isLow && !isOut && <AlertTriangle className="h-3.5 w-3.5 text-status-processing" />}
-            {isOut && <AlertTriangle className="h-3.5 w-3.5 text-status-cancelled" />}
-          </div>
-        )}
-      </td>
-
-      <td className="px-4 py-3 text-xs text-muted">{product.reservedQty}</td>
-
-      <td className="px-4 py-3">
-        {editing ? (
-          <Input
-            type="number"
-            value={threshold}
-            onChange={(e) => setThreshold(e.target.value)}
-            className="h-7 w-24 text-xs"
-            min={0}
-          />
-        ) : (
-          <span className="text-sm">{product.lowStockThreshold}</span>
-        )}
-      </td>
-
-      <td className="px-4 py-3">
-        <span className={cn(
-          "inline-flex items-center rounded px-2 py-1 text-xs font-medium",
-          isOut ? "bg-status-cancelled-bg text-status-cancelled" :
-          isLow ? "bg-status-processing-bg text-status-processing" :
-          "bg-status-delivered-bg text-status-delivered"
-        )}>
-          {isOut ? "Out of stock" : isLow ? "Low stock" : "OK"}
-        </span>
-      </td>
-
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-1.5">
-          {editing ? (
-            <>
-              <button onClick={save} className="rounded-md p-1.5 text-status-delivered hover:bg-surface-sunken">
-                <Check className="h-4 w-4" />
-              </button>
-              <button onClick={cancel} className="rounded-md p-1.5 text-muted hover:bg-surface-sunken">
-                <X className="h-4 w-4" />
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => onAdd(product)}
-                className="rounded-md border border-border px-2 py-1 text-xs font-medium text-status-delivered hover:bg-status-delivered-bg transition-colors"
-              >
-                + Add
-              </button>
-              <button
-                onClick={() => onRemove(product)}
-                className="rounded-md border border-border px-2 py-1 text-xs font-medium text-status-cancelled hover:bg-status-cancelled-bg transition-colors"
-              >
-                − Remove
-              </button>
-              <button
-                onClick={() => setEditing(true)}
-                className="rounded-md p-1.5 text-muted hover:bg-surface-sunken hover:text-foreground"
-                title="Edit name & threshold"
-              >
-                <Edit2 className="h-3.5 w-3.5" />
-              </button>
-              <button
-                onClick={() => onHistory(product)}
-                className="rounded-md p-1.5 text-muted hover:bg-surface-sunken hover:text-primary"
-                title="View history"
-              >
-                <History className="h-3.5 w-3.5" />
-              </button>
-              <button
-                onClick={() => onDelete(product.id)}
-                className="rounded-md p-1.5 text-muted hover:bg-surface-sunken hover:text-status-cancelled"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </>
-          )}
-        </div>
-      </td>
-    </tr>
   );
 }
 
 function ProductsContent() {
   const { canAccessStore } = useAuth();
   const { stores } = useStores();
-  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [products, setProducts] = useState<any[]>([]);
+  const [summary, setSummary] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [addModal, setAddModal] = useState(false);
-  const [adjustModal, setAdjustModal] = useState<{ product: Product; mode: "add" | "remove" } | null>(null);
-  const [historyProduct, setHistoryProduct] = useState<Product | null>(null);
+  const [filter, setFilter] = useState<"all" | "OK" | "SOON" | "LOW" | "OUT" | "DEFECTIVE">("all");
   const [selectedStoreIds, setSelectedStoreIds] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const accessibleStores = stores.filter((s) => canAccessStore(s.id));
 
   useEffect(() => {
     if (stores.length > 0 && selectedStoreIds.length === 0) {
       setSelectedStoreIds(stores.map((s) => s.id));
-      setSelectedStoreId(stores[0].id);
     }
   }, [stores]);
 
-  const fetchProducts = useCallback(async () => {
-    if (!selectedStoreId) return;
+  const fetchAll = useCallback(async () => {
+    if (selectedStoreIds.length === 0) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API}/stores/${selectedStoreId}/products`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      const data = await res.json();
-      setProducts(data);
+      const q = `storeIds=${selectedStoreIds.join(",")}`;
+      const [pRes, sRes] = await Promise.all([
+        fetch(`${API}/products?${q}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+        fetch(`${API}/products/summary?${q}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+      ]);
+      const p = await pRes.json();
+      setProducts(Array.isArray(p) ? p : []);
+      setSummary(await sRes.json());
     } catch {
       setProducts([]);
     } finally {
       setLoading(false);
     }
-  }, [selectedStoreId]);
+  }, [selectedStoreIds]);
 
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+    fetchAll();
+  }, [fetchAll]);
 
-  async function handleDelete(id: string) {
-    if (!window.confirm("Delete this product? Stock tracking will stop.")) return;
-    await fetch(`${API}/stores/products/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    fetchProducts();
-  }
-
-  async function handleUpdate(id: string, data: Partial<Product>) {
-    await fetch(`${API}/stores/products/${id}`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${getToken()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    });
-    fetchProducts();
+  async function syncConverty() {
+    setSyncing(true);
+    try {
+      let created = 0;
+      let updated = 0;
+      for (const s of accessibleStores) {
+        if (!selectedStoreIds.includes(s.id)) continue;
+        const res = await fetch(`${API}/integrations/converty/${s.id}/import-products`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          created += data.created ?? 0;
+          updated += data.updated ?? 0;
+        }
+      }
+      alert(`Import termine : ${created} crees, ${updated} mis a jour`);
+      fetchAll();
+    } finally {
+      setSyncing(false);
+    }
   }
 
   const filtered = products.filter((p) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
+    if (filter === "DEFECTIVE" && p.defectiveQty === 0) return false;
+    if (filter !== "all" && filter !== "DEFECTIVE" && p.status !== filter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!p.name.toLowerCase().includes(q) && !p.sku.toLowerCase().includes(q)) return false;
+    }
+    return true;
   });
 
-  const outCount = products.filter((p) => p.quantityAvailable === 0).length;
-  const lowCount = products.filter((p) => p.quantityAvailable > 0 && p.quantityAvailable <= p.lowStockThreshold).length;
-  const okCount = products.filter((p) => p.quantityAvailable > p.lowStockThreshold).length;
-
-  const selectedStore = accessibleStores.find((s) => s.id === selectedStoreId);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="flex h-screen bg-background">
@@ -626,128 +240,214 @@ function ProductsContent() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-5">
-          <h1 className="text-base font-semibold">Products & Stock</h1>
-          <Button size="sm" onClick={() => setAddModal(true)} disabled={!selectedStoreId}>
-            <Plus className="h-3.5 w-3.5" />
-            Add product
-          </Button>
+          <h1 className="text-base font-semibold">Produits & Stock</h1>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="secondary" disabled={syncing} onClick={syncConverty}>
+              <Download className="h-3.5 w-3.5" />
+              {syncing ? "Import..." : "Importer"}
+            </Button>
+            <Button size="sm" onClick={() => setShowCreate(true)}>
+              <Plus className="h-3.5 w-3.5" />
+              Produit
+            </Button>
+          </div>
         </header>
 
-        <div className="flex gap-1 border-b border-border bg-surface px-5 pt-3">
-          {accessibleStores.map((store) => (
-            <button
-              key={store.id}
-              onClick={() => setSelectedStoreId(store.id)}
-              className={cn(
-                "rounded-t-md border-b-2 px-4 py-2 text-xs font-medium transition-colors",
-                selectedStoreId === store.id
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted hover:text-foreground"
-              )}
-            >
-              {store.name}
-            </button>
-          ))}
-        </div>
+        {/* Summary */}
+        {summary && (
+          <div className="grid grid-cols-6 gap-3 border-b border-border bg-surface p-4">
+            <div className="rounded-lg bg-surface-sunken px-3 py-2.5">
+              <p className="text-[10px] text-muted">Produits</p>
+              <p className="mt-0.5 text-xl font-bold">{summary.total}</p>
+            </div>
+            <div className="rounded-lg bg-status-delivered-bg px-3 py-2.5">
+              <p className="text-[10px] text-status-delivered">En stock</p>
+              <p className="mt-0.5 text-xl font-bold text-status-delivered">{summary.ok}</p>
+            </div>
+            <div className="rounded-lg bg-status-processing-bg px-3 py-2.5">
+              <p className="text-[10px] text-status-processing">Bientot epuise</p>
+              <p className="mt-0.5 text-xl font-bold text-status-processing">{summary.soon}</p>
+            </div>
+            <div className="rounded-lg bg-status-processing-bg px-3 py-2.5">
+              <p className="text-[10px] text-status-processing">Stock bas</p>
+              <p className="mt-0.5 text-xl font-bold text-status-processing">{summary.low}</p>
+            </div>
+            <div className="rounded-lg bg-status-cancelled-bg px-3 py-2.5">
+              <p className="text-[10px] text-status-cancelled">Rupture</p>
+              <p className="mt-0.5 text-xl font-bold text-status-cancelled">{summary.out}</p>
+            </div>
+            <div className="rounded-lg bg-status-refunded-bg px-3 py-2.5">
+              <p className="text-[10px] text-status-refunded">Defectueux</p>
+              <p className="mt-0.5 text-xl font-bold text-status-refunded">{summary.defective}</p>
+            </div>
+          </div>
+        )}
 
-        <div className="grid grid-cols-3 gap-4 border-b border-border bg-surface p-5">
-          <div className="rounded-lg bg-status-cancelled-bg px-4 py-3">
-            <p className="text-xs font-medium text-status-cancelled">Out of stock</p>
-            <p className="mt-1 text-2xl font-bold text-status-cancelled">{outCount}</p>
-          </div>
-          <div className="rounded-lg bg-status-processing-bg px-4 py-3">
-            <p className="text-xs font-medium text-status-processing">Low stock</p>
-            <p className="mt-1 text-2xl font-bold text-status-processing">{lowCount}</p>
-          </div>
-          <div className="rounded-lg bg-status-delivered-bg px-4 py-3">
-            <p className="text-xs font-medium text-status-delivered">OK</p>
-            <p className="mt-1 text-2xl font-bold text-status-delivered">{okCount}</p>
-          </div>
-        </div>
-
-        <div className="border-b border-border bg-surface px-5 py-3">
-          <div className="relative w-72">
+        {/* Filters */}
+        <div className="flex items-center gap-3 border-b border-border bg-surface px-5 py-3">
+          <div className="relative w-64">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-light" />
             <Input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search product or SKU..."
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              placeholder="Rechercher nom ou SKU..."
               className="pl-8"
             />
           </div>
+          <div className="flex gap-1">
+            {[
+              { key: "all", label: "Tous", count: products.length },
+              { key: "OUT", label: "Rupture", count: summary?.out ?? 0 },
+              { key: "LOW", label: "Stock bas", count: summary?.low ?? 0 },
+              { key: "SOON", label: "Bientot", count: summary?.soon ?? 0 },
+              { key: "OK", label: "OK", count: summary?.ok ?? 0 },
+              { key: "DEFECTIVE", label: "Defectueux", count: products.filter((p) => p.defectiveQty > 0).length },
+            ].map((t) => (
+              <button
+                key={t.key}
+                onClick={() => { setFilter(t.key as any); setPage(1); }}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  filter === t.key ? "bg-primary-soft text-primary" : "text-muted hover:bg-surface-sunken"
+                )}
+              >
+                {t.label}
+                <span className={cn(
+                  "rounded-full px-1.5 py-0.5 text-[10px]",
+                  filter === t.key ? "bg-primary text-white" : "bg-surface-sunken"
+                )}>
+                  {t.count}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
 
+        {/* Table */}
         <div className="flex-1 overflow-auto">
           {loading ? (
-            <div className="flex items-center justify-center py-24">
-              <p className="text-sm text-muted">Loading products...</p>
-            </div>
+            <p className="py-24 text-center text-sm text-muted">Chargement...</p>
           ) : (
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-surface">
                 <tr className="border-b border-border text-left text-xs font-medium text-muted">
-                  <th className="px-5 py-2.5">Product</th>
-                  <th className="px-4 py-2.5">SKU</th>
-                  <th className="px-4 py-2.5">Available</th>
-                  <th className="px-4 py-2.5">Reserved</th>
-                  <th className="px-4 py-2.5">Threshold</th>
-                  <th className="px-4 py-2.5">Status</th>
-                  <th className="px-4 py-2.5">Actions</th>
+                  <th className="px-4 py-2.5">Produit</th>
+                  <th className="px-4 py-2.5">Magasin</th>
+                  <th className="px-4 py-2.5">Disponible</th>
+                  <th className="px-4 py-2.5">Defectueux</th>
+                  <th className="px-4 py-2.5">Seuil</th>
+                  <th className="px-4 py-2.5">Vendus 30j</th>
+                  <th className="px-4 py-2.5">Rupture dans</th>
+                  <th className="px-4 py-2.5">Statut</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((product) => (
-                  <ProductRow
-                    key={product.id}
-                    product={product}
-                    onDelete={handleDelete}
-                    onUpdate={handleUpdate}
-                    onAdd={(p) => setAdjustModal({ product: p, mode: "add" })}
-                    onRemove={(p) => setAdjustModal({ product: p, mode: "remove" })}
-                    onHistory={setHistoryProduct}
-                  />
+                {pageItems.map((p) => (
+                  <tr
+                    key={p.id}
+                    onClick={() => setOpenId(p.id)}
+                    className="cursor-pointer border-b border-border transition-colors hover:bg-surface-sunken"
+                  >
+                    <td className="px-4 py-3">
+                      <p className="truncate max-w-[220px] text-sm font-medium">{p.name}</p>
+                      <p className="font-mono text-[11px] text-muted">{p.sku}</p>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted">{p.storeName}</td>
+                    <td className="px-4 py-3">
+                      <span className={cn(
+                        "font-mono text-sm font-bold",
+                        p.status === "OUT" ? "text-status-cancelled" :
+                        p.status === "LOW" || p.status === "SOON" ? "text-status-processing" :
+                        "text-status-delivered"
+                      )}>
+                        {p.quantityAvailable}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {p.defectiveQty > 0 ? (
+                        <span className="rounded bg-status-refunded-bg px-1.5 py-0.5 font-mono text-xs font-bold text-status-refunded">
+                          {p.defectiveQty}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-light">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-muted">{p.lowStockThreshold}</td>
+                    <td className="px-4 py-3">
+                      <span className="font-mono text-sm">{p.stats.sold30}</span>
+                      {p.stats.velocity > 0 && (
+                        <span className="ml-1 text-[10px] text-muted">
+                          {p.stats.velocity}/j
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {p.stats.daysLeft !== null ? (
+                        <span className={cn(
+                          "flex items-center gap-1 text-xs",
+                          p.stats.daysLeft <= 7 ? "font-bold text-status-cancelled" :
+                          p.stats.daysLeft <= 14 ? "text-status-processing" :
+                          "text-muted"
+                        )}>
+                          <Calendar className="h-3 w-3" />
+                          {p.stats.daysLeft}j
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-light">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={cn(
+                        "rounded px-2 py-1 text-xs font-medium whitespace-nowrap",
+                        STATUS_STYLE[p.status]
+                      )}>
+                        {STATUS_LABEL[p.status]}
+                      </span>
+                    </td>
+                  </tr>
                 ))}
               </tbody>
             </table>
           )}
 
-          {!loading && filtered.length === 0 && (
+          {!loading && pageItems.length === 0 && (
             <div className="flex flex-col items-center justify-center py-24">
               <Package className="h-8 w-8 text-muted-light" />
-              <p className="mt-2 text-sm font-medium">No products yet</p>
+              <p className="mt-2 text-sm font-medium">Aucun produit</p>
               <p className="mt-1 text-xs text-muted">
-                Click "Add product" to start tracking stock for {selectedStore?.name ?? "this store"}.
+                Importez depuis Converty ou creez un produit manuellement.
               </p>
-              <Button size="sm" className="mt-4" onClick={() => setAddModal(true)}>
-                <Plus className="h-3.5 w-3.5" />
-                Add first product
-              </Button>
             </div>
           )}
         </div>
+
+        <footer className="flex shrink-0 items-center justify-between border-t border-border bg-surface px-5 py-2.5">
+          <p className="text-xs text-muted">{filtered.length} produits</p>
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <span className="px-2 text-xs text-muted">Page {page} / {totalPages}</span>
+            <Button size="sm" variant="outline" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </footer>
       </div>
 
-      {addModal && selectedStoreId && (
-        <AddProductModal
-          storeId={selectedStoreId}
-          onClose={() => setAddModal(false)}
-          onAdded={fetchProducts}
+      {openId && (
+        <ProductModal
+          productId={openId}
+          onClose={() => setOpenId(null)}
+          onUpdated={fetchAll}
         />
       )}
 
-      {adjustModal && (
-        <StockAdjustModal
-          product={adjustModal.product}
-          mode={adjustModal.mode}
-          onClose={() => setAdjustModal(null)}
-          onDone={fetchProducts}
-        />
-      )}
-
-      {historyProduct && (
-        <HistoryModal
-          product={historyProduct}
-          onClose={() => setHistoryProduct(null)}
+      {showCreate && (
+        <CreateProductModal
+          stores={accessibleStores}
+          onClose={() => setShowCreate(false)}
+          onCreated={fetchAll}
         />
       )}
     </div>

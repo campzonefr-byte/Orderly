@@ -210,7 +210,6 @@ model Refund {
 }
 
 // ----------- INVENTORY -----------
-
 model Product {
   id                String   @id @default(cuid())
   storeId           String
@@ -220,7 +219,14 @@ model Product {
   name              String
   quantityAvailable Int      @default(0)
   reservedQty       Int      @default(0)
+  defectiveQty      Int      @default(0)
   lowStockThreshold Int      @default(5)
+  reorderQty        Int      @default(0)
+  costPrice         Decimal? @db.Decimal(10, 2)
+  sellPrice         Decimal? @db.Decimal(10, 2)
+  externalId        String?
+  imageUrl          String?
+  isActive          Boolean  @default(true)
 
   lineItems         OrderLineItem[]
   stockAlerts       StockAlert[]
