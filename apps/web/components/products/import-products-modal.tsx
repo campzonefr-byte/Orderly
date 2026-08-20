@@ -86,7 +86,14 @@ export function ImportProductsModal({
       setLoading(false);
     }
   }, [storeId, stores]);
-
+  function toggleExpand(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
   function toggleProduct(p: RemoteProduct) {
     setSelected((prev) => {
       const next = new Map(prev);
