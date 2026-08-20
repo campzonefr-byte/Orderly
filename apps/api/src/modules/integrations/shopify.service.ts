@@ -276,9 +276,29 @@ export class ShopifyService {
   }
 
   async handleCallback(code: string, state: string, shop: string) {
-    const [storeId, domain] = (state ?? '').split('::');
-    if (!storeId || !domain) return { ok: false, error: 'State invalide' };
-    if (shop && shop !== domain) return { ok: false, error: 'Domaine incoherent' };
+    const [storeId, domainFromState] = (state ?? '').split('::');
+    if (!storeId) return { ok: false, error: 'State invalide' };
+
+    const norm = (d?: string) =>
+      (d ?? '')
+        .toLowerCase()
+        .replace(/^https?:\/\//, '')
+        .replace(/\/$/, '')
+        .trim();
+
+    const shopNorm = norm(shop);
+    const stateNorm = norm(domainFromState);
+
+    // Shopify is the source of truth
+    const domain = shopNorm || stateNorm;
+    if (!domain) return { ok: false, error: 'Domaine introuvable' };
+
+    if (shopNorm && stateNorm && shopNorm !== stateNorm) {
+      return {
+        ok: false,
+        error: `Domaine incoherent : saisi "${stateNorm}", Shopify a renvoye "${shopNorm}"`,
+      };
+    }
 
     try {
       const res = await fetch(`https://${domain}/admin/oauth/access_token`, {
