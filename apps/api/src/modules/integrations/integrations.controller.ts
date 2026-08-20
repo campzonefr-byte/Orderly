@@ -127,7 +127,44 @@ export class IntegrationsController {
     ) {
       return this.shopify.importSelectedProducts(storeId, body.selections ?? []);
     }
-  
+    @UseGuards(JwtAuthGuard)
+  @Post('shopify/:storeId/auth-url')
+  shopifyAuthUrl(
+    @Param('storeId') storeId: string,
+    @Body() body: { shopDomain: string },
+  ) {
+    return this.shopify.getAuthUrl(storeId, body.shopDomain ?? '');
+  }
+
+  @Get('shopify/callback')
+  @SetMetadata('isPublic', true)
+  async shopifyCallback(
+    @Query('code') code: string,
+    @Query('state') state: string,
+    @Query('shop') shop: string,
+    @Res() res: Response,
+  ) {
+    const frontend = process.env.FRONTEND_URL ?? 'https://orderly-beige.vercel.app';
+
+    if (!code || !state) {
+      return res.redirect(`${frontend}/stores?shopify=error`);
+    }
+
+    const result = await this.shopify.handleCallback(code, state, shop);
+    if (!result.ok) {
+      return res.redirect(`${frontend}/stores?shopify=error`);
+    }
+
+    this.shopify.registerWebhooks(result.storeId!).catch(() => {});
+
+    return res.redirect(`${frontend}/stores?shopify=connected`);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('shopify/:storeId/register-webhooks')
+  shopifyWebhooks(@Param('storeId') storeId: string) {
+    return this.shopify.registerWebhooks(storeId);
+  }
     @UseGuards(JwtAuthGuard)
     @Post('shopify/:storeId/import-all-products')
     shopifyImportAll(@Param('storeId') storeId: string) {

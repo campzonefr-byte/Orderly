@@ -222,4 +222,131 @@ export class ShopifyService {
 
     return this.importSelectedProducts(storeId, selections);
   }
+  private get clientId() {
+    return process.env.SHOPIFY_CLIENT_ID ?? '';
+  }
+  private get clientSecret() {
+    return process.env.SHOPIFY_CLIENT_SECRET ?? '';
+  }
+  private get redirectUri() {
+    return process.env.SHOPIFY_REDIRECT_URI ?? '';
+  }
+
+  getAuthUrl(storeId: string, shopDomain: string) {
+    const domain = shopDomain
+      .replace(/^https?:\/\//, '')
+      .replace(/\/$/, '')
+      .trim();
+
+    if (!domain.endsWith('.myshopify.com')) {
+      return { ok: false, error: 'Le domaine doit finir par .myshopify.com' };
+    }
+
+    const scopes = 'read_products,read_inventory,read_orders';
+    const nonce = Math.random().toString(36).slice(2);
+    const state = `${storeId}::${domain}::${nonce}`;
+
+    const params = new URLSearchParams({
+      client_id: this.clientId,
+      scope: scopes,
+      redirect_uri: this.redirectUri,
+      state,
+    });
+
+    return {
+      ok: true,
+      url: `https://${domain}/admin/oauth/authorize?${params.toString()}`,
+    };
+  }
+
+  async handleCallback(code: string, state: string, shop: string) {
+    const [storeId, domain] = (state ?? '').split('::');
+    if (!storeId || !domain) return { ok: false, error: 'State invalide' };
+    if (shop && shop !== domain) return { ok: false, error: 'Domaine incoherent' };
+
+    try {
+      const res = await fetch(`https://${domain}/admin/oauth/access_token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: this.clientId,
+          client_secret: this.clientSecret,
+          code,
+        }),
+      });
+
+      const data: any = await res.json();
+      if (!res.ok || !data?.access_token) {
+        return { ok: false, error: data?.error_description ?? `HTTP ${res.status}` };
+      }
+
+      const store = await this.prisma.store.findUnique({ where: { id: storeId } });
+      const existing = (store?.credentials as any) ?? {};
+
+      await this.prisma.store.update({
+        where: { id: storeId },
+        data: {
+          credentials: {
+            ...existing,
+            shopDomain: domain,
+            accessToken: data.access_token,
+            scope: data.scope ?? null,
+            connectedAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      return { ok: true, storeId };
+    } catch (e: any) {
+      return { ok: false, error: e?.message ?? 'Erreur reseau' };
+    }
+  }
+
+  async registerWebhooks(storeId: string) {
+    const config = await this.getConfig(storeId);
+    if (!config) return { ok: false, error: 'Shopify non configure' };
+
+    const base = (this.redirectUri ?? '').replace(
+      '/integrations/shopify/callback',
+      '',
+    );
+
+    const hooks = [
+      { topic: 'orders/create', path: 'orders-create' },
+      { topic: 'orders/updated', path: 'orders-updated' },
+      { topic: 'orders/cancelled', path: 'orders-cancelled' },
+      { topic: 'fulfillments/create', path: 'fulfillments-create' },
+      { topic: 'refunds/create', path: 'refunds-create' },
+    ];
+
+    const results: any[] = [];
+
+    for (const h of hooks) {
+      try {
+        const res = await fetch(
+          `https://${config.domain}/admin/api/${API_VERSION}/webhooks.json`,
+          {
+            method: 'POST',
+            headers: {
+              'X-Shopify-Access-Token': config.token,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              webhook: {
+                topic: h.topic,
+                address: `${base}/webhooks/shopify/${storeId}/${h.path}`,
+                format: 'json',
+              },
+            }),
+          },
+        );
+        const body = await res.json().catch(() => ({}));
+        results.push({ topic: h.topic, ok: res.ok, status: res.status, body });
+      } catch (e: any) {
+        results.push({ topic: h.topic, ok: false, error: e?.message });
+      }
+    }
+
+    return { ok: results.some((r) => r.ok), results };
+  }
 }
