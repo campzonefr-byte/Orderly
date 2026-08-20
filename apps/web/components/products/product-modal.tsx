@@ -56,9 +56,7 @@ export function ProductModal({
   const [busy, setBusy] = useState(false);
 
   // Stock form
-  const [adjustType, setAdjustType] = useState
-    "ADD" | "REMOVE" | "TO_DEFECTIVE" | "FROM_DEFECTIVE"
-  >("ADD");
+  const [adjustType, setAdjustType] = useState<"ADD" | "REMOVE" | "TO_DEFECTIVE" | "FROM_DEFECTIVE">("ADD");
   const [qty, setQty] = useState("1");
   const [note, setNote] = useState("");
 
