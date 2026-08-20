@@ -147,19 +147,19 @@ export class IntegrationsController {
     const frontend = process.env.FRONTEND_URL ?? 'https://orderly-beige.vercel.app';
 
     if (!code || !state) {
-      return res.redirect(`${frontend}/stores?shopify=error`);
+      return res.redirect(`${frontend}/stores?shopify=error&reason=missing_params`);
     }
 
-    const result = await this.shopify.handleCallback(code, state, shop);
+    const result: any = await this.shopify.handleCallback(code, state, shop);
     if (!result.ok) {
-      return res.redirect(`${frontend}/stores?shopify=error`);
+      const reason = encodeURIComponent(String(result.error ?? 'unknown').slice(0, 120));
+      return res.redirect(`${frontend}/stores?shopify=error&reason=${reason}`);
     }
 
     this.shopify.registerWebhooks(result.storeId!).catch(() => {});
 
     return res.redirect(`${frontend}/stores?shopify=connected`);
   }
-
   @UseGuards(JwtAuthGuard)
   @Post('shopify/:storeId/register-webhooks')
   shopifyWebhooks(@Param('storeId') storeId: string) {

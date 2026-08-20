@@ -657,7 +657,15 @@ function StoresContent() {
 
     const s = searchParams.get("shopify");
     if (s === "connected") setBanner({ ok: true, text: "Shopify connecte avec succes" });
-    if (s === "error") setBanner({ ok: false, text: "Echec de la connexion Shopify" });
+    if (s === "error") {
+      const reason = searchParams.get("reason");
+      setBanner({
+        ok: false,
+        text: reason
+          ? `Echec Shopify : ${decodeURIComponent(reason)}`
+          : "Echec de la connexion Shopify",
+      });
+    }
   }, [searchParams]);
 
   return (
