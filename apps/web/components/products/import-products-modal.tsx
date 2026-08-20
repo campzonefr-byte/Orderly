@@ -113,25 +113,27 @@ export function ImportProductsModal({
           if (allSelected) next.delete(v.sku);
           else
             next.set(v.sku, {
-              sku: v.sku,
-              name: `${p.name} - ${v.label}`,
-              stock: v.stock,
-              price: v.price,
-              cost: v.cost,
-              alertOn: v.alertOn,
-            });
+                sku: v.sku,
+                name: `${p.name} - ${v.label}`,
+                stock: v.stock,
+                price: v.price,
+                cost: v.cost,
+                alertOn: v.alertOn,
+                image: (v as any).image ?? p.image,
+              });
         });
       } else {
         if (next.has(p.sku)) next.delete(p.sku);
         else
-          next.set(p.sku, {
-            sku: p.sku,
-            name: p.name,
-            stock: p.stock,
-            price: p.price,
-            cost: p.cost,
-            alertOn: 5,
-          });
+            next.set(p.sku, {
+                sku: p.sku,
+                name: p.name,
+                stock: p.stock,
+                price: p.price,
+                cost: p.cost,
+                alertOn: 5,
+                image: p.image,
+              });
       }
       return next;
     });

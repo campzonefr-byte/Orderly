@@ -172,27 +172,35 @@ export function ProductModal({
         {/* Header */}
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
           <div className="flex items-center gap-3">
-            <div
-              className={cn(
-                "flex h-11 w-11 items-center justify-center rounded-lg",
-                isOut
-                  ? "bg-status-cancelled-bg"
-                  : isLow
-                  ? "bg-status-processing-bg"
-                  : "bg-status-delivered-bg"
-              )}
-            >
-              <Package
-                className={cn(
-                  "h-5 w-5",
-                  isOut
-                    ? "text-status-cancelled"
-                    : isLow
-                    ? "text-status-processing"
-                    : "text-status-delivered"
-                )}
+          {product.imageUrl ? (
+              <img
+                src={product.imageUrl}
+                alt=""
+                className="h-11 w-11 shrink-0 rounded-lg border border-border object-cover"
               />
-            </div>
+            ) : (
+              <div
+                className={cn(
+                  "flex h-11 w-11 items-center justify-center rounded-lg",
+                  isOut
+                    ? "bg-status-cancelled-bg"
+                    : isLow
+                    ? "bg-status-processing-bg"
+                    : "bg-status-delivered-bg"
+                )}
+              >
+                <Package
+                  className={cn(
+                    "h-5 w-5",
+                    isOut
+                      ? "text-status-cancelled"
+                      : isLow
+                      ? "text-status-processing"
+                      : "text-status-delivered"
+                  )}
+                />
+              </div>
+            )}
             <div>
               <h2 className="text-sm font-semibold">{product.name}</h2>
               <p className="font-mono text-xs text-muted">

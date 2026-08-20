@@ -129,20 +129,21 @@ export class ShopifyService {
           status: p.status ?? 'active',
           alreadyImported: known.has(mainSku),
           variants: hasRealVariants
-            ? variants.map((v) => {
-                const sku = String(v.sku || v.id);
-                return {
-                  id: String(v.id),
-                  sku,
-                  label: v.title ?? 'Variante',
-                  price: Number(v.price ?? 0),
-                  cost: 0,
-                  stock: Number(v.inventory_quantity ?? 0),
-                  alertOn: 5,
-                  alreadyImported: known.has(sku),
-                };
-              })
-            : [],
+          ? variants.map((v) => {
+              const sku = String(v.sku || v.id);
+              return {
+                id: String(v.id),
+                sku,
+                label: v.title ?? 'Variante',
+                price: Number(v.price ?? 0),
+                cost: 0,
+                stock: Number(v.inventory_quantity ?? 0),
+                alertOn: 5,
+                image: p.image?.src ?? p.images?.[0]?.src ?? null,
+                alreadyImported: known.has(sku),
+              };
+            })
+          : [],
         };
       })
       .filter((p) => {
@@ -186,6 +187,7 @@ export class ShopifyService {
             name: s.name,
             quantityAvailable: s.stock,
             ...(s.price > 0 && { sellPrice: s.price }),
+            ...((s as any).image && { imageUrl: (s as any).image }),
           },
         });
         updated++;
@@ -198,6 +200,7 @@ export class ShopifyService {
             quantityAvailable: s.stock,
             lowStockThreshold: s.alertOn && s.alertOn > 0 ? s.alertOn : 5,
             sellPrice: s.price > 0 ? s.price : null,
+            imageUrl: (s as any).image ?? null,
           },
         });
         created++;
@@ -213,27 +216,29 @@ export class ShopifyService {
 
     const selections: any[] = [];
     for (const p of browse.items) {
-      if (p.variants.length > 0) {
-        p.variants.forEach((v: any) =>
-          selections.push({
-            sku: v.sku,
-            name: `${p.name} - ${v.label}`,
-            stock: v.stock,
-            price: v.price,
-            cost: 0,
-            alertOn: 5,
-          }),
-        );
-      } else {
-        selections.push({
-          sku: p.sku,
-          name: p.name,
-          stock: p.stock,
-          price: p.price,
-          cost: 0,
-          alertOn: 5,
-        });
-      }
+        if (p.variants.length > 0) {
+            p.variants.forEach((v: any) =>
+              selections.push({
+                sku: v.sku,
+                name: `${p.name} - ${v.label}`,
+                stock: v.stock,
+                price: v.price,
+                cost: 0,
+                alertOn: 5,
+                image: v.image ?? p.image,
+              }),
+            );
+          } else {
+            selections.push({
+              sku: p.sku,
+              name: p.name,
+              stock: p.stock,
+              price: p.price,
+              cost: 0,
+              alertOn: 5,
+              image: p.image,
+            });
+          }
     }
 
     return this.importSelectedProducts(storeId, selections);

@@ -231,6 +231,7 @@ export class ConvertyService {
 
       for (const p of items) {
         const variants: any[] = p?.newVariants ?? [];
+        const img = p.images?.[0]?.sm ?? null;
         const rows = variants.length
           ? variants.map((v) => ({
               sku: String(v.sku ?? v.id ?? p._id),
@@ -239,6 +240,7 @@ export class ConvertyService {
               }`,
               qty: Number(v.stock?.quantity ?? 0),
               alert: Number(v.stock?.alertOn ?? 5),
+              image: img,
             }))
           : [
               {
@@ -246,6 +248,7 @@ export class ConvertyService {
                 name: p.name ?? 'Produit',
                 qty: Number(p.stock ?? 0),
                 alert: 5,
+                image: img,
               },
             ];
 
@@ -257,7 +260,11 @@ export class ConvertyService {
           if (existing) {
             await this.prisma.product.update({
               where: { id: existing.id },
-              data: { name: r.name, quantityAvailable: r.qty },
+              data: {
+                name: r.name,
+                quantityAvailable: r.qty,
+                ...(r.image && { imageUrl: r.image }),
+              },
             });
             updated++;
           } else {
@@ -268,6 +275,7 @@ export class ConvertyService {
                 name: r.name,
                 quantityAvailable: r.qty,
                 lowStockThreshold: r.alert > 0 ? r.alert : 5,
+                imageUrl: r.image ?? null,
               },
             });
             created++;
@@ -524,6 +532,7 @@ export class ConvertyService {
               cost: Number(v.cost ?? 0),
               stock: Number(v.stock?.quantity ?? 0),
               alertOn: Number(v.stock?.alertOn ?? 5),
+              image: p.images?.[0]?.sm ?? null,
               alreadyImported: known.has(String(v.sku ?? v.id)),
             })),
           };
@@ -564,6 +573,7 @@ export class ConvertyService {
             quantityAvailable: s.stock,
             ...(s.price > 0 && { sellPrice: s.price }),
             ...(s.cost > 0 && { costPrice: s.cost }),
+            ...((s as any).image && { imageUrl: (s as any).image }),
           },
         });
         updated++;
@@ -577,6 +587,7 @@ export class ConvertyService {
             lowStockThreshold: s.alertOn && s.alertOn > 0 ? s.alertOn : 5,
             sellPrice: s.price > 0 ? s.price : null,
             costPrice: s.cost > 0 ? s.cost : null,
+            imageUrl: (s as any).image ?? null,
           },
         });
         created++;
