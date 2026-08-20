@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   Search, Package, Plus, X, Download, AlertTriangle,
-  ChevronLeft, ChevronRight, Calendar, Settings2,
+  ChevronLeft, ChevronRight, Calendar, Settings2, Bell,
 } from "lucide-react";
 import { ProductModal } from "@/components/products/product-modal";
 
@@ -342,7 +342,7 @@ function ProductsContent() {
                   <th className="px-4 py-2.5">Magasin</th>
                   <th className="px-4 py-2.5">Disponible</th>
                   <th className="px-4 py-2.5">Defectueux</th>
-                  <th className="px-4 py-2.5">Seuil</th>
+                  <th className="px-4 py-2.5">Seuil alerte</th>
                   <th className="px-4 py-2.5">Vendus 30j</th>
                   <th className="px-4 py-2.5">Rupture dans</th>
                   <th className="px-4 py-2.5">Statut</th>
@@ -380,7 +380,24 @@ function ProductsContent() {
                         <span className="text-xs text-muted-light">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-muted">{p.lowStockThreshold}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <Bell className={cn(
+                          "h-3 w-3",
+                          p.quantityAvailable <= p.lowStockThreshold
+                            ? "text-status-cancelled"
+                            : "text-muted-light"
+                        )} />
+                        <span className={cn(
+                          "font-mono text-xs",
+                          p.quantityAvailable <= p.lowStockThreshold
+                            ? "font-bold text-status-cancelled"
+                            : "text-muted"
+                        )}>
+                          {p.lowStockThreshold}
+                        </span>
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <span className="font-mono text-sm">{p.stats.sold30}</span>
                       {p.stats.velocity > 0 && (
@@ -413,9 +430,8 @@ function ProductsContent() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="flex items-center gap-1 text-xs font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted transition-colors group-hover:border-primary group-hover:bg-primary-soft group-hover:text-primary">
                         <Settings2 className="h-3.5 w-3.5" />
-                        Gerer
                       </span>
                     </td>
                   </tr>
