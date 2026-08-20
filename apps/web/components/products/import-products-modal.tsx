@@ -86,6 +86,16 @@ export function ImportProductsModal({
       setLoading(false);
     }
   }, [storeId, stores]);
+  
+  useEffect(() => {
+    if (!storeId && stores.length > 0) {
+      setStoreId(stores[0].id);
+    }
+  }, [stores, storeId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
   function toggleExpand(id: string) {
     setExpanded((prev) => {
       const next = new Set(prev);
