@@ -2,10 +2,14 @@ import { Controller, Get, Post, Body, Param, Query, Res, UseGuards, SetMetadata 
 import type { Response } from 'express';
 import { ConvertyService } from './converty.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ShopifyService } from './shopify.service';
 
 @Controller('integrations')
 export class IntegrationsController {
-  constructor(private converty: ConvertyService) {}
+  constructor(
+    private converty: ConvertyService,
+    private shopify: ShopifyService,
+  ) {}
 
   // --- OAuth callback (public, called by Converty) ---
   @Get('converty/callback')
@@ -92,4 +96,41 @@ export class IntegrationsController {
   registerWebhooks(@Param('storeId') storeId: string) {
     return this.converty.registerWebhooks(storeId);
   }
+    // ---- Shopify ----
+
+    @UseGuards(JwtAuthGuard)
+    @Get('shopify/:storeId/status')
+    shopifyStatus(@Param('storeId') storeId: string) {
+      return this.shopify.getStatus(storeId);
+    }
+  
+    @UseGuards(JwtAuthGuard)
+    @Post('shopify/:storeId/test')
+    shopifyTest(@Param('storeId') storeId: string) {
+      return this.shopify.testConnection(storeId);
+    }
+  
+    @UseGuards(JwtAuthGuard)
+    @Get('shopify/:storeId/browse-products')
+    shopifyBrowse(
+      @Param('storeId') storeId: string,
+      @Query('search') search?: string,
+    ) {
+      return this.shopify.browseProducts(storeId, search);
+    }
+  
+    @UseGuards(JwtAuthGuard)
+    @Post('shopify/:storeId/import-selected')
+    shopifyImportSelected(
+      @Param('storeId') storeId: string,
+      @Body() body: { selections: any[] },
+    ) {
+      return this.shopify.importSelectedProducts(storeId, body.selections ?? []);
+    }
+  
+    @UseGuards(JwtAuthGuard)
+    @Post('shopify/:storeId/import-all-products')
+    shopifyImportAll(@Param('storeId') storeId: string) {
+      return this.shopify.importAllProducts(storeId);
+    }
 }

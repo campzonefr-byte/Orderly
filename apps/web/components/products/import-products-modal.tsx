@@ -14,6 +14,9 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 function getToken() {
   return window.localStorage.getItem("orderly_token");
 }
+function providerFor(sourceType?: string) {
+    return sourceType === "SHOPIFY" ? "shopify" : "converty";
+  }
 
 interface Variant {
   id: string;
@@ -56,16 +59,19 @@ export function ImportProductsModal({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Map<string, any>>(new Map());
   const [importing, setImporting] = useState(false);
-
   const load = useCallback(async () => {
     if (!storeId) return;
     setLoading(true);
     setError("");
     setItems([]);
     setSelected(new Map());
+
+    const store = stores.find((s) => s.id === storeId);
+    const provider = providerFor(store?.sourceType);
+
     try {
       const res = await fetch(
-        `${API}/integrations/converty/${storeId}/browse-products`,
+        `${API}/integrations/${provider}/${storeId}/browse-products`,
         { headers: { Authorization: `Bearer ${getToken()}` } }
       );
       const data = await res.json();
@@ -79,20 +85,7 @@ export function ImportProductsModal({
     } finally {
       setLoading(false);
     }
-  }, [storeId]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  function toggleExpand(id: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
+  }, [storeId, stores]);
 
   function toggleProduct(p: RemoteProduct) {
     setSelected((prev) => {
@@ -175,9 +168,13 @@ export function ImportProductsModal({
   async function doImport() {
     if (selected.size === 0) return;
     setImporting(true);
+
+    const store = stores.find((s) => s.id === storeId);
+    const provider = providerFor(store?.sourceType);
+
     try {
       const res = await fetch(
-        `${API}/integrations/converty/${storeId}/import-selected`,
+        `${API}/integrations/${provider}/${storeId}/import-selected`,
         {
           method: "POST",
           headers: {
@@ -232,7 +229,9 @@ export function ImportProductsModal({
               className="h-9 w-full rounded-md border border-border bg-surface px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               {stores.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.sourceType === "SHOPIFY" ? "Shopify" : "Converty"})
+                </option>
               ))}
             </select>
           </div>
@@ -262,7 +261,9 @@ export function ImportProductsModal({
               <div className="text-xs text-status-cancelled">
                 <p className="font-semibold">{error}</p>
                 <p className="mt-0.5">
-                  Verifiez que ce magasin est bien connecte a Converty dans la page Magasins.
+                  {providerFor(stores.find((s) => s.id === storeId)?.sourceType) === "shopify"
+                    ? "Verifiez le domaine et l'access token Shopify dans la page Integrations. Le token doit avoir la permission read_products."
+                    : "Verifiez que ce magasin est bien connecte a Converty dans la page Magasins."}
                 </p>
               </div>
             </div>
