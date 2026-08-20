@@ -62,6 +62,23 @@ export class IntegrationsController {
     return this.converty.debugRaw(storeId, path ?? '/stores/me');
   }
   @UseGuards(JwtAuthGuard)
+  @Get('converty/:storeId/browse-products')
+  browseProducts(
+    @Param('storeId') storeId: string,
+    @Query('search') search?: string,
+  ) {
+    return this.converty.browseProducts(storeId, search);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('converty/:storeId/import-selected')
+  importSelected(
+    @Param('storeId') storeId: string,
+    @Body() body: { selections: any[] },
+  ) {
+    return this.converty.importSelectedProducts(storeId, body.selections ?? []);
+  }
+  @UseGuards(JwtAuthGuard)
   @Post('converty/:storeId/import-orders')
   importOrders(
     @Param('storeId') storeId: string,

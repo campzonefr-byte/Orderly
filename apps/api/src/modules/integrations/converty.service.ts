@@ -478,4 +478,111 @@ export class ConvertyService {
       return { ok: false, error: e?.message, url };
     }
   }
+  async browseProducts(storeId: string, search?: string) {
+    const token = await this.getValidToken(storeId);
+    if (!token) return { ok: false, error: 'Converty non connecte', items: [] };
+
+    try {
+      const res = await fetch(`${CONVERTY_API}/products?limit=250`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      });
+      const raw = await res.text();
+      if (raw.trim().startsWith('<')) {
+        return { ok: false, error: 'Reponse invalide de Converty', items: [] };
+      }
+
+      const data = JSON.parse(raw);
+      if (!res.ok) return { ok: false, error: `HTTP ${res.status}`, items: [] };
+
+      const products: any[] = data?.data ?? data?.products ?? (Array.isArray(data) ? data : []);
+
+      // Which SKUs are already imported
+      const existing = await this.prisma.product.findMany({
+        where: { storeId },
+        select: { sku: true },
+      });
+      const known = new Set(existing.map((e) => e.sku));
+
+      const items = products
+        .map((p) => {
+          const variants: any[] = p?.newVariants ?? [];
+          return {
+            id: String(p._id),
+            name: p.name ?? 'Produit',
+            sku: String(p.sku ?? p._id),
+            price: Number(p.price ?? 0),
+            cost: Number(p.cost ?? 0),
+            stock: Number(p.stock ?? 0),
+            image: p.images?.[0]?.sm ?? null,
+            status: p.status ?? 'shown',
+            alreadyImported: known.has(String(p.sku ?? p._id)),
+            variants: variants.map((v) => ({
+              id: String(v.id),
+              sku: String(v.sku ?? v.id),
+              label: (v.selectedValues ?? []).join(' / ') || 'Variante',
+              price: Number(v.price ?? p.price ?? 0),
+              cost: Number(v.cost ?? 0),
+              stock: Number(v.stock?.quantity ?? 0),
+              alertOn: Number(v.stock?.alertOn ?? 5),
+              alreadyImported: known.has(String(v.sku ?? v.id)),
+            })),
+          };
+        })
+        .filter((p) => {
+          if (!search) return true;
+          const q = search.toLowerCase();
+          return (
+            p.name.toLowerCase().includes(q) ||
+            p.sku.toLowerCase().includes(q)
+          );
+        });
+
+      return { ok: true, items };
+    } catch (e: any) {
+      return { ok: false, error: e?.message ?? 'Erreur reseau', items: [] };
+    }
+  }
+
+  async importSelectedProducts(
+    storeId: string,
+    selections: { sku: string; name: string; stock: number; price: number; cost: number; alertOn?: number }[],
+  ) {
+    let created = 0;
+    let updated = 0;
+
+    for (const s of selections) {
+      if (!s.sku) continue;
+      const existing = await this.prisma.product.findUnique({
+        where: { storeId_sku: { storeId, sku: s.sku } },
+      });
+
+      if (existing) {
+        await this.prisma.product.update({
+          where: { id: existing.id },
+          data: {
+            name: s.name,
+            quantityAvailable: s.stock,
+            ...(s.price > 0 && { sellPrice: s.price }),
+            ...(s.cost > 0 && { costPrice: s.cost }),
+          },
+        });
+        updated++;
+      } else {
+        await this.prisma.product.create({
+          data: {
+            storeId,
+            sku: s.sku,
+            name: s.name,
+            quantityAvailable: s.stock,
+            lowStockThreshold: s.alertOn && s.alertOn > 0 ? s.alertOn : 5,
+            sellPrice: s.price > 0 ? s.price : null,
+            costPrice: s.cost > 0 ? s.cost : null,
+          },
+        });
+        created++;
+      }
+    }
+
+    return { ok: true, created, updated };
+  }
 }

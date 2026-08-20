@@ -7,6 +7,7 @@ import { useStores } from "@/lib/stores-context";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ImportProductsModal } from "@/components/products/import-products-modal";
 import { cn } from "@/lib/utils";
 import {
   Search, Package, Plus, X, Download, AlertTriangle,
@@ -159,7 +160,7 @@ function ProductsContent() {
   const [page, setPage] = useState(1);
   const [openId, setOpenId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const accessibleStores = stores.filter((s) => canAccessStore(s.id));
 
@@ -192,30 +193,6 @@ function ProductsContent() {
     fetchAll();
   }, [fetchAll]);
 
-  async function syncConverty() {
-    setSyncing(true);
-    try {
-      let created = 0;
-      let updated = 0;
-      for (const s of accessibleStores) {
-        if (!selectedStoreIds.includes(s.id)) continue;
-        const res = await fetch(`${API}/integrations/converty/${s.id}/import-products`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        });
-        const data = await res.json();
-        if (data.ok) {
-          created += data.created ?? 0;
-          updated += data.updated ?? 0;
-        }
-      }
-      alert(`Import termine : ${created} crees, ${updated} mis a jour`);
-      fetchAll();
-    } finally {
-      setSyncing(false);
-    }
-  }
 
   const filtered = products.filter((p) => {
     if (filter === "DEFECTIVE" && p.defectiveQty === 0) return false;
@@ -242,9 +219,9 @@ function ProductsContent() {
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-5">
           <h1 className="text-base font-semibold">Produits & Stock</h1>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="secondary" disabled={syncing} onClick={syncConverty}>
+          <Button size="sm" variant="secondary" onClick={() => setShowImport(true)}>
               <Download className="h-3.5 w-3.5" />
-              {syncing ? "Import..." : "Importer"}
+              Importer depuis une boutique
             </Button>
             <Button size="sm" onClick={() => setShowCreate(true)}>
               <Plus className="h-3.5 w-3.5" />
@@ -473,11 +450,11 @@ function ProductsContent() {
         />
       )}
 
-      {showCreate && (
-        <CreateProductModal
-          stores={accessibleStores}
-          onClose={() => setShowCreate(false)}
-          onCreated={fetchAll}
+{showImport && (
+        <ImportProductsModal
+          stores={accessibleStores as any}
+          onClose={() => setShowImport(false)}
+          onImported={fetchAll}
         />
       )}
     </div>
