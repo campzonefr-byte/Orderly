@@ -262,7 +262,6 @@ export class ConvertyService {
               where: { id: existing.id },
               data: {
                 name: r.name,
-                quantityAvailable: r.qty,
                 ...(r.image && { imageUrl: r.image }),
               },
             });
@@ -566,11 +565,11 @@ export class ConvertyService {
       });
 
       if (existing) {
+        // Orderly owns the stock — never overwrite it on re-import
         await this.prisma.product.update({
           where: { id: existing.id },
           data: {
             name: s.name,
-            quantityAvailable: s.stock,
             ...(s.price > 0 && { sellPrice: s.price }),
             ...(s.cost > 0 && { costPrice: s.cost }),
             ...((s as any).image && { imageUrl: (s as any).image }),

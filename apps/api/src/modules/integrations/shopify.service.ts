@@ -179,13 +179,12 @@ export class ShopifyService {
       const existing = await this.prisma.product.findUnique({
         where: { storeId_sku: { storeId, sku: s.sku } },
       });
-
       if (existing) {
+        // Orderly owns the stock — never overwrite it on re-import
         await this.prisma.product.update({
           where: { id: existing.id },
           data: {
             name: s.name,
-            quantityAvailable: s.stock,
             ...(s.price > 0 && { sellPrice: s.price }),
             ...((s as any).image && { imageUrl: (s as any).image }),
           },

@@ -433,7 +433,13 @@ export function ImportProductsModal({
             </div>
           )}
         </div>
-
+        <div className="border-t border-border bg-surface-sunken px-5 py-2">
+          <p className="text-[11px] text-muted">
+            Le stock affiche ici vient de la boutique. Pour les produits deja importes,
+            le stock gere dans Orderly n'est jamais ecrase — seuls le nom, l'image et
+            les prix sont mis a jour.
+          </p>
+        </div>
         <div className="flex items-center gap-2 border-t border-border px-5 py-4">
           <p className="flex-1 text-xs text-muted">
             {selected.size > 0
