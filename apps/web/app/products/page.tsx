@@ -436,7 +436,7 @@ function ProductsContent() {
             </Button>
             <span className="px-2 text-xs text-muted">Page {page} / {totalPages}</span>
             <Button size="sm" variant="outline" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-              <ChevronRight className="h-3.5 w-3.5" />
+            <ChevronRight className="h-3.5 w-3.5" />
             </Button>
           </div>
         </footer>
@@ -450,7 +450,15 @@ function ProductsContent() {
         />
       )}
 
-{showImport && (
+      {showCreate && (
+        <CreateProductModal
+          stores={accessibleStores}
+          onClose={() => setShowCreate(false)}
+          onCreated={fetchAll}
+        />
+      )}
+
+      {showImport && (
         <ImportProductsModal
           stores={accessibleStores as any}
           onClose={() => setShowImport(false)}
