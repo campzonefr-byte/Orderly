@@ -322,10 +322,6 @@ function StoreCard({
   }, [fetchConverty, fetchShopify]);
 
   async function connectShopify() {
-    if (!shopDomain.trim()) {
-      setMsg({ ok: false, text: "Saisissez le domaine .myshopify.com" });
-      return;
-    }
     setBusy("shopify-connect");
     try {
       const res = await fetch(`${API}/integrations/shopify/${store.id}/auth-url`, {
@@ -598,22 +594,27 @@ function StoreCard({
             </div>
           ) : (
             <div className="space-y-2">
+            <Button
+              size="sm"
+              className="w-full"
+              disabled={busy !== ""}
+              onClick={connectShopify}
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              {busy === "shopify-connect" ? "Redirection..." : "Connecter Shopify"}
+            </Button>
+            <details className="text-[11px] text-muted">
+              <summary className="cursor-pointer hover:text-foreground">
+                Saisir le domaine manuellement
+              </summary>
               <Input
                 value={shopDomain}
                 onChange={(e) => setShopDomain(e.target.value)}
                 placeholder="votre-boutique.myshopify.com"
-                className="h-8 text-xs"
+                className="mt-2 h-8 text-xs"
               />
-              <Button
-                size="sm"
-                className="w-full"
-                disabled={busy !== "" || !shopDomain.trim()}
-                onClick={connectShopify}
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                {busy === "shopify-connect" ? "Redirection..." : "Connecter Shopify"}
-              </Button>
-            </div>
+            </details>
+          </div>
           )}
 
           {msg && (

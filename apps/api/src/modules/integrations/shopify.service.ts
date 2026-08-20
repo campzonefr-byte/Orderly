@@ -248,30 +248,36 @@ export class ShopifyService {
     return process.env.SHOPIFY_REDIRECT_URI ?? '';
   }
 
-  getAuthUrl(storeId: string, shopDomain: string) {
-    const domain = shopDomain
+  getAuthUrl(storeId: string, shopDomain?: string) {
+    const scopes = 'read_products,read_inventory,read_orders,read_fulfillments';
+    const nonce = Math.random().toString(36).slice(2);
+    const domain = (shopDomain ?? '')
       .replace(/^https?:\/\//, '')
       .replace(/\/$/, '')
-      .trim();
+      .trim()
+      .toLowerCase();
 
-    if (!domain.endsWith('.myshopify.com')) {
-      return { ok: false, error: 'Le domaine doit finir par .myshopify.com' };
-    }
-
-    const scopes = 'read_products,read_inventory,read_orders';
-    const nonce = Math.random().toString(36).slice(2);
     const state = `${storeId}::${domain}::${nonce}`;
 
-    const params = new URLSearchParams({
-      client_id: this.clientId,
-      scope: scopes,
-      redirect_uri: this.redirectUri,
-      state,
-    });
+    // Known domain: direct authorization
+    if (domain.endsWith('.myshopify.com')) {
+      const params = new URLSearchParams({
+        client_id: this.clientId,
+        scope: scopes,
+        redirect_uri: this.redirectUri,
+        state,
+      });
+      return {
+        ok: true,
+        url: `https://${domain}/admin/oauth/authorize?${params.toString()}`,
+      };
+    }
 
+    // No domain: let Shopify ask which store to install on
     return {
       ok: true,
-      url: `https://${domain}/admin/oauth/authorize?${params.toString()}`,
+      url: `https://admin.shopify.com/oauth/install?client_id=${this.clientId}&state=${encodeURIComponent(state)}`,
+      needsStorePicker: true,
     };
   }
 
