@@ -605,6 +605,7 @@ function OrderModal({
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [editability, setEditability] = useState<any>(null);
   const [cityError, setCityError] = useState(false);
+  const { products: storeProducts, loading: loadingProducts } = useStoreProducts(order.storeId);
   useEffect(() => {
     (async () => {
       try {
@@ -902,7 +903,12 @@ function OrderModal({
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-medium text-muted">Produits</label>
+                  <label className="text-xs font-medium text-muted">
+                      Produits
+                      <span className="ml-1 text-[10px] text-muted-light">
+                        ({storeProducts.length} au catalogue)
+                      </span>
+                    </label>
                     <button onClick={addLineItem} disabled={isLocked} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-40">
                       <Plus className="h-3 w-3" /> Ajouter
                     </button>
@@ -910,14 +916,36 @@ function OrderModal({
                   <div className="space-y-2">
                     {lineItems.map((li, idx) => (
                       <div key={idx} className="rounded-lg border border-border p-2.5 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Input
+                                              <div className="flex items-center gap-2">
+                          <ProductPicker
                             value={li.title}
-                            onChange={(e) => updateLineItem(idx, "title", e.target.value)}
-                            placeholder="Nom produit"
-                            className="flex-1 h-7 text-xs"
+                            onSelect={(prod, raw) => {
+                              if (prod) {
+                                setLineItems((prev) =>
+                                  prev.map((x, i) =>
+                                    i === idx
+                                      ? {
+                                          ...x,
+                                          title: prod.name,
+                                          sku: prod.sku,
+                                          price: (prod as any).sellPrice ?? x.price,
+                                        }
+                                      : x
+                                  )
+                                );
+                              } else {
+                                updateLineItem(idx, "title", raw);
+                              }
+                            }}
+                            products={storeProducts}
+                            loading={loadingProducts}
+                            className="flex-1"
                           />
-                          <button onClick={() => removeLineItem(idx)} className="text-muted hover:text-status-cancelled">
+                          <button
+                            onClick={() => removeLineItem(idx)}
+                            disabled={isLocked}
+                            className="text-muted hover:text-status-cancelled disabled:opacity-40"
+                          >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
