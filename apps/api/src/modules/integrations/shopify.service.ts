@@ -299,14 +299,7 @@ export class ShopifyService {
     const domain = shopNorm || stateNorm;
     if (!domain) return { ok: false, error: 'Domaine introuvable' };
 
-    if (shopNorm && stateNorm && shopNorm !== stateNorm) {
-      return {
-        ok: false,
-        error: `Domaine incoherent : saisi "${stateNorm}", Shopify a renvoye "${shopNorm}"`,
-      };
-    }
-
-    try {
+  try {
       const res = await fetch(`https://${domain}/admin/oauth/access_token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
