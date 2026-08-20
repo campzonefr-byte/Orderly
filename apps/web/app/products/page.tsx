@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   Search, Package, Plus, X, Download, AlertTriangle,
-  ChevronLeft, ChevronRight, Calendar,
+  ChevronLeft, ChevronRight, Calendar, Settings2,
 } from "lucide-react";
 import { ProductModal } from "@/components/products/product-modal";
 
@@ -323,6 +323,13 @@ function ProductsContent() {
           </div>
         </div>
 
+        <div className="border-b border-border bg-surface-sunken px-5 py-1.5">
+          <p className="flex items-center gap-1.5 text-[11px] text-muted">
+            <Settings2 className="h-3 w-3" />
+            Cliquez sur un produit pour ajuster le stock, modifier les seuils et voir les statistiques
+          </p>
+        </div>
+
         {/* Table */}
         <div className="flex-1 overflow-auto">
           {loading ? (
@@ -339,6 +346,7 @@ function ProductsContent() {
                   <th className="px-4 py-2.5">Vendus 30j</th>
                   <th className="px-4 py-2.5">Rupture dans</th>
                   <th className="px-4 py-2.5">Statut</th>
+                  <th className="px-4 py-2.5"></th>
                 </tr>
               </thead>
               <tbody>
@@ -346,7 +354,7 @@ function ProductsContent() {
                   <tr
                     key={p.id}
                     onClick={() => setOpenId(p.id)}
-                    className="cursor-pointer border-b border-border transition-colors hover:bg-surface-sunken"
+                                        className="group cursor-pointer border-b border-border transition-colors hover:bg-surface-sunken"
                   >
                     <td className="px-4 py-3">
                       <p className="truncate max-w-[220px] text-sm font-medium">{p.name}</p>
@@ -402,6 +410,12 @@ function ProductsContent() {
                         STATUS_STYLE[p.status]
                       )}>
                         {STATUS_LABEL[p.status]}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="flex items-center gap-1 text-xs font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
+                        <Settings2 className="h-3.5 w-3.5" />
+                        Gerer
                       </span>
                     </td>
                   </tr>
