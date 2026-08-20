@@ -31,6 +31,7 @@ import {
 import { Order, OrderStatus, CallAttempt } from "@/types/order";
 import { OrderStatusBadge } from "@/components/orders/status-badge";
 import { TagBadge, TagPicker } from "@/components/orders/tag-picker";
+import { CityPicker, isValidCity, detectCity } from "@/components/orders/city-picker";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 
@@ -576,7 +577,12 @@ function OrderModal({
   const [customerName, setCustomerName] = useState(order.customerName ?? "");
   const [phone1, setPhone1] = useState(order.customerPhone ?? "");
   const [phone2, setPhone2] = useState(order.customerPhone2 ?? "");
-  const [city, setCity] = useState((order.shippingAddress as any)?.city ?? "");
+  const [city, setCity] = useState(() => {
+    const raw = (order.shippingAddress as any)?.city ?? "";
+    const addr = (order.shippingAddress as any)?.address1 ?? "";
+    if (isValidCity(raw)) return raw;
+    return detectCity(raw, addr) ?? raw;
+  });
   const [address, setAddress] = useState((order.shippingAddress as any)?.address1 ?? "");
   const [internalNote, setInternalNote] = useState(order.internalNote ?? "");
   const [lineItems, setLineItems] = useState(
@@ -598,6 +604,7 @@ function OrderModal({
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [editability, setEditability] = useState<any>(null);
+  const [cityError, setCityError] = useState(false);
   useEffect(() => {
     (async () => {
       try {
@@ -775,6 +782,12 @@ function OrderModal({
   }
 
   function handleLog() {
+    if (result === "ANSWERED_CONFIRMED" && !isValidCity(city)) {
+      setCityError(true);
+      return;
+    }
+    setCityError(false);
+
     if (result === "ANSWERED_REFUSED") {
       setShowCancelModal(true);
     } else if (result === "ANSWERED_CONFIRMED") {
@@ -785,6 +798,11 @@ function OrderModal({
   }
 
   async function handleSaveOnly() {
+    if (city && !isValidCity(city)) {
+      setCityError(true);
+      return;
+    }
+    setCityError(false);
     setLoading(true);
     try {
       await saveOrder();
@@ -864,9 +882,16 @@ function OrderModal({
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-muted">Ville</label>
-                      <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Tunis" disabled={isLocked} />
+                  <div>
+                      <label className="mb-1 block text-xs font-medium text-muted">
+                        Gouvernorat <span className="text-status-cancelled">*</span>
+                      </label>
+                      <CityPicker
+                        value={city}
+                        onChange={setCity}
+                        address={address}
+                        disabled={isLocked}
+                      />
                     </div>
                     <div>
                       <label className="mb-1 block text-xs font-medium text-muted">Adresse</label>
@@ -1046,6 +1071,18 @@ function OrderModal({
               </div>
             </div>
           </div>
+          {cityError && (
+            <div className="flex items-start gap-2.5 border-t border-status-cancelled/30 bg-status-cancelled-bg px-5 py-3">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-status-cancelled" />
+              <div className="text-xs text-status-cancelled">
+                <p className="font-semibold">Gouvernorat obligatoire</p>
+                <p className="mt-0.5">
+                  Demandez au client son gouvernorat et selectionnez-le dans la liste.
+                  Sans cela, le colis ne peut pas etre cree chez le transporteur.
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-2 border-t border-border px-5 py-4">
             <Button variant="secondary" onClick={onClose}>Fermer</Button>
@@ -1413,7 +1450,14 @@ function ConfirmationContent() {
                         {order.customerPhone2 && (
                           <p className="text-[11px] text-muted font-mono">{order.customerPhone2}</p>
                         )}
-                        <CustomerBadges stats={customerStats[normalizePhone(order.customerPhone)]} />
+                                           <CustomerBadges stats={customerStats[normalizePhone(order.customerPhone)]} />
+                        {order.deliveryCompany === "Cosmos" &&
+                          !isValidCity((order.shippingAddress as any)?.city) && (
+                            <span className="mt-1 inline-flex items-center gap-1 rounded bg-status-cancelled-bg px-1.5 py-0.5 text-[10px] font-medium text-status-cancelled">
+                              <AlertTriangle className="h-2.5 w-2.5" />
+                              gouvernorat manquant
+                            </span>
+                          )}
                       </td>
                       <td className="px-4 py-3">
                         <span className="font-mono text-xs">{order.customerPhone ?? "—"}</span>
