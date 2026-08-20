@@ -75,9 +75,25 @@ export class ShopifyService {
   }
 
   async getStatus(storeId: string) {
-    const config = await this.getConfig(storeId);
-    if (!config) return { connected: false, hasToken: false };
-    return { connected: true, hasToken: true, domain: config.domain };
+    const store = await this.prisma.store.findUnique({ where: { id: storeId } });
+    const creds = (store?.credentials as any) ?? {};
+
+    if (!creds.accessToken || !creds.shopDomain) {
+      return { connected: false, hasToken: false, domain: creds.shopDomain ?? null };
+    }
+
+    // A real OAuth token starts with shpat_ and we store connectedAt
+    const looksValid =
+      String(creds.accessToken).startsWith('shpat_') || !!creds.connectedAt;
+
+    return {
+      connected: looksValid,
+      hasToken: true,
+      needsReconnect: !looksValid,
+      domain: creds.shopDomain,
+      scope: creds.scope ?? null,
+      connectedAt: creds.connectedAt ?? null,
+    };
   }
 
   async browseProducts(storeId: string, search?: string) {

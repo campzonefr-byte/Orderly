@@ -545,7 +545,14 @@ function StoreCard({
                   : "bg-status-onhold-bg text-muted"
               )}
             >
-              {shopifyStatus?.connected ? (
+                        {shopifyStatus?.needsReconnect && (
+            <div className="rounded-lg bg-status-processing-bg px-3 py-2 text-[11px] text-status-processing">
+              Ancien token detecte. Reconnectez la boutique pour activer l'import
+              des produits et la gestion des webhooks.
+            </div>
+          )}
+
+          {shopifyStatus?.connected ? (
                 <CheckCircle2 className="h-3 w-3" />
               ) : (
                 <XCircle className="h-3 w-3" />
