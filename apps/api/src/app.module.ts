@@ -13,6 +13,7 @@ import { MarketingModule } from './modules/marketing/marketing.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { ProductsModule } from './modules/products/products.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { SocialModule } from './modules/social/social.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -28,6 +29,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     DeliveryModule,
     IntegrationsModule,
     ProductsModule,
+    SocialModule,
   ],
 })
 export class AppModule {}

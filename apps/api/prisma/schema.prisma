@@ -78,6 +78,7 @@ model Store {
   products        Product[]
   userAccess      UserStoreAccess[]
   deliveryConfigs DeliveryIntegration[]
+  socialAccounts  SocialAccount[]
 
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
@@ -463,4 +464,70 @@ model ChatMessage {
   createdAt DateTime @default(now())
 
   @@index([channelId, createdAt])
+}
+
+// ----------- SOCIAL (Facebook / Instagram) -----------
+
+model SocialAccount {
+  id            String   @id @default(cuid())
+  storeId       String
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  platform      String   // FACEBOOK, INSTAGRAM
+  externalId    String   // page id or ig business id
+  name          String
+  username      String?
+  pictureUrl    String?
+  accessToken   String
+  tokenExpiry   DateTime?
+  isActive      Boolean  @default(true)
+
+  comments      SocialComment[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([storeId, platform, externalId])
+  @@index([storeId])
+}
+
+model SocialComment {
+  id              String   @id @default(cuid())
+  accountId       String
+  account         SocialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  externalId      String   @unique
+  parentId        String?
+
+  postId          String
+  postMessage     String?
+  postPictureUrl  String?
+  postType        String?  // POST, AD, REEL, STORY
+
+  authorId        String?
+  authorName      String?
+  authorPicture   String?
+
+  message         String
+  detectedPhone   String?
+  detectedName    String?
+  detectedCity    String?
+  detectedProduct String?
+  confidence      Float    @default(0)
+
+  status          String   @default("NEW") // NEW, REVIEWED, CONVERTED, IGNORED
+  orderId         String?
+  assignedTo      String?
+  internalNote    String?
+
+  repliedAt       DateTime?
+  replyText       String?
+
+  postedAt        DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([accountId, status])
+  @@index([postId])
+  @@index([postedAt])
 }
