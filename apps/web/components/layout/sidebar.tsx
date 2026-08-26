@@ -30,26 +30,59 @@ import {
 } from "lucide-react";
 import { NotificationCenter } from "@/components/layout/notification-center";
 
-const NAV_ITEMS: { label: string; icon: React.ElementType; href: string; badge?: number; permission?: string }[] = [
-  { label: "Vue d'ensemble", icon: LayoutGrid, href: "/" },
-  { label: "Confirmation", icon: Phone, href: "/confirmation", permission: "confirmation" },
-  { label: "Préparation", icon: Package, href: "/preparation", permission: "preparation" },
-  { label: "Livraison", icon: Truck, href: "/fulfillment", permission: "fulfillment" },
-  { label: "Retours", icon: RotateCcw, href: "/retours", permission: "retours" },
-  { label: "Réclamations", icon: AlertCircle, href: "/reclamation", permission: "reclamation" },
-  { label: "Clients", icon: Users, href: "/clients", permission: "clients" },
-  { label: "Marketing", icon: Megaphone, href: "/marketing", permission: "marketing" },
-  { label: "Performance", icon: TrendingUp, href: "/agents", permission: "agents" },
-  { label: "Archives", icon: Archive, href: "/archives", permission: "archives" },
-  { label: "Produits", icon: ShoppingBag, href: "/products", permission: "products" },
-  { label: "Messagerie", icon: MessageSquare, href: "/inbox", permission: "inbox" },
-  { label: "Commentaires", icon: MessageSquare, href: "/comments", permission: "comments" },
-  { label: "Chat équipe", icon: MessageSquare, href: "/chat", permission: "chat" },
-  { label: "Scanner QR", icon: QrCode, href: "/scanner", permission: "scanner" },
-  { label: "Magasins", icon: StoreIcon, href: "/stores", permission: "stores" },
-  { label: "Utilisateurs", icon: Users, href: "/users", permission: "users" },
-  { label: "Intégrations", icon: Plug, href: "/integrations", permission: "integrations" },
-  { label: "Paramètres", icon: Settings, href: "/settings", permission: "settings" },
+const NAV_GROUPS: {
+  label: string | null;
+  items: { label: string; icon: React.ElementType; href: string; permission?: string }[];
+}[] = [
+  {
+    label: null,
+    items: [
+      { label: "Vue d'ensemble", icon: LayoutGrid, href: "/" },
+    ],
+  },
+  {
+    label: "Traitement commandes",
+    items: [
+      { label: "Confirmation", icon: Phone, href: "/confirmation", permission: "confirmation" },
+      { label: "Préparation", icon: Package, href: "/preparation", permission: "preparation" },
+      { label: "Livraison", icon: Truck, href: "/fulfillment", permission: "fulfillment" },
+      { label: "Retours", icon: RotateCcw, href: "/retours", permission: "retours" },
+      { label: "Scanner", icon: QrCode, href: "/scanner", permission: "scanner" },
+    ],
+  },
+  {
+    label: "Clients & Ventes",
+    items: [
+      { label: "Clients", icon: Users, href: "/clients", permission: "clients" },
+      { label: "Commentaires", icon: MessageSquare, href: "/comments", permission: "comments" },
+      { label: "Réclamations", icon: AlertCircle, href: "/reclamation", permission: "reclamation" },
+      { label: "Messagerie", icon: MessageSquare, href: "/inbox", permission: "inbox" },
+    ],
+  },
+  {
+    label: "Catalogue",
+    items: [
+      { label: "Produits & Stock", icon: ShoppingBag, href: "/products", permission: "products" },
+      { label: "Archives", icon: Archive, href: "/archives", permission: "archives" },
+    ],
+  },
+  {
+    label: "Équipe",
+    items: [
+      { label: "Performance", icon: TrendingUp, href: "/agents", permission: "agents" },
+      { label: "Chat équipe", icon: MessageSquare, href: "/chat", permission: "chat" },
+      { label: "Marketing", icon: Megaphone, href: "/marketing", permission: "marketing" },
+    ],
+  },
+  {
+    label: "Configuration",
+    items: [
+      { label: "Magasins", icon: StoreIcon, href: "/stores", permission: "stores" },
+      { label: "Intégrations", icon: Plug, href: "/integrations", permission: "integrations" },
+      { label: "Utilisateurs", icon: Users, href: "/users", permission: "users" },
+      { label: "Paramètres", icon: Settings, href: "/settings", permission: "settings" },
+    ],
+  },
 ];
 
 interface SidebarProps {
@@ -79,9 +112,7 @@ export function Sidebar({ stores, selectedStoreIds, onChangeSelectedStores }: Si
     setStoreOpen(false);
   }
 
-  const visibleNavItems = NAV_ITEMS.filter(
-    (item) => !item.permission || hasPermission(item.permission)
-  );
+  
 
   return (
     <aside className="flex h-screen w-56 shrink-0 flex-col border-r border-border bg-surface">
@@ -183,30 +214,41 @@ export function Sidebar({ stores, selectedStoreIds, onChangeSelectedStores }: Si
         )}
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-2 py-2">
-        {visibleNavItems.map((item) => {
-          const Icon = item.icon;
-          const active = pathname === item.href;
+    {/* Nav */}
+    <nav className="flex-1 overflow-y-auto py-2">
+        {NAV_GROUPS.map((group, gi) => {
+          const visible = group.items.filter(
+            (item) => !item.permission || hasPermission(item.permission)
+          );
+          if (visible.length === 0) return null;
+
           return (
-            <button
-              key={item.href}
-              onClick={() => router.push(item.href)}
-              className={cn(
-                "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-xs font-medium transition-colors",
-                active
-                  ? "bg-primary-soft text-primary"
-                  : "text-muted hover:bg-surface-sunken hover:text-foreground"
+            <div key={gi} className="mb-1">
+              {group.label && (
+                <p className="mb-0.5 px-3 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-light">
+                  {group.label}
+                </p>
               )}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              <span className="truncate">{item.label}</span>
-              {item.badge !== undefined && item.badge > 0 && (
-                <span className="ml-auto rounded-full bg-status-cancelled px-1.5 py-0.5 text-[10px] font-bold text-white">
-                  {item.badge}
-                </span>
-              )}
-            </button>
+              {visible.map((item) => {
+                const Icon = item.icon;
+                const active = pathname === item.href;
+                return (
+                  <button
+                    key={item.href}
+                    onClick={() => router.push(item.href)}
+                    className={cn(
+                      "flex w-full items-center gap-2.5 rounded-md mx-1 px-2.5 py-1.5 text-xs font-medium transition-colors",
+                      active
+                        ? "bg-primary text-white"
+                        : "text-muted hover:bg-surface-sunken hover:text-foreground"
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           );
         })}
       </nav>

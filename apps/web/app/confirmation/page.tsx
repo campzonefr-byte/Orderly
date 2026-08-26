@@ -50,11 +50,11 @@ function formatMoney(n: number, currency: string) {
 }
 
 const CALL_RESULTS = [
-  { value: "ANSWERED_CONFIRMED", label: "✅ Confirmé" },
-  { value: "ANSWERED_REFUSED", label: "❌ Refusé" },
-  { value: "NO_ANSWER", label: "📵 Pas de réponse" },
-  { value: "BUSY", label: "📵 Occupé" },
-  { value: "WRONG_NUMBER", label: "❌ Mauvais numéro" },
+  { value: "ANSWERED_CONFIRMED", label: "Confirmé", bg: "bg-status-delivered", text: "text-white" },
+  { value: "ANSWERED_REFUSED", label: "Refusé", bg: "bg-status-cancelled", text: "text-white" },
+  { value: "NO_ANSWER", label: "Pas de réponse", bg: "bg-surface-sunken", text: "text-muted" },
+  { value: "BUSY", label: "Occupé", bg: "bg-status-processing-bg", text: "text-status-processing" },
+  { value: "WRONG_NUMBER", label: "Mauvais numéro", bg: "bg-status-refunded-bg", text: "text-status-refunded" },
 ];
 
 const RESULT_COLORS: Record<string, string> = {
@@ -581,7 +581,8 @@ function OrderModal({
     const raw = (order.shippingAddress as any)?.city ?? "";
     const addr = (order.shippingAddress as any)?.address1 ?? "";
     if (isValidCity(raw)) return raw;
-    return detectCity(raw, addr) ?? raw;
+    const detected = detectCity(raw, addr);
+    return detected ?? "";
   });
   const [address, setAddress] = useState((order.shippingAddress as any)?.address1 ?? "");
   const [internalNote, setInternalNote] = useState(order.internalNote ?? "");
@@ -1056,15 +1057,23 @@ function OrderModal({
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-muted">Résultat</label>
-                    <select
-                      value={result}
-                      onChange={(e) => setResult(e.target.value)}
-                      className="h-9 w-full rounded-md border border-border bg-surface px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                      {CALL_RESULTS.map((r) => (
-                        <option key={r.value} value={r.value}>{r.label}</option>
-                      ))}
-                    </select>
+                    <div className="grid grid-cols-2 gap-2">
+  {CALL_RESULTS.map((r) => (
+    <button
+      key={r.value}
+      type="button"
+      onClick={() => setResult(r.value as any)}
+      className={cn(
+        "rounded-lg px-3 py-2 text-sm font-semibold transition-all border-2",
+        result === r.value
+          ? `${r.bg} ${r.text} border-transparent shadow-md scale-[1.02]`
+          : "border-border bg-surface text-muted hover:border-border-strong hover:text-foreground"
+      )}
+    >
+      {r.label}
+    </button>
+  ))}
+</div>
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-muted">Note</label>
