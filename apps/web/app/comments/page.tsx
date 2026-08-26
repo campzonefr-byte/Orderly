@@ -162,7 +162,24 @@ function CommentsContent() {
       setBusy("");
     }
   }
+  async function disconnectAccount(id: string, name: string) {
+    if (!window.confirm(
+      `Deconnecter "${name}" ?\n\nLes commentaires deja importes restent dans Orderly, ` +
+      `mais aucun nouveau ne sera recupere.`
+    )) return;
 
+    setBusy(id);
+    try {
+      await fetch(`${API}/social/accounts/${id}/disconnect`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      setBanner({ ok: true, text: `${name} deconnecte` });
+      fetchAll();
+    } finally {
+      setBusy("");
+    }
+  }
   async function syncAccount(id: string) {
     setBusy(id);
     try {
@@ -297,14 +314,24 @@ function CommentsContent() {
                     {a.commentCount} commentaires · {a.newCount} nouveaux
                   </p>
                 </div>
-                <button
-                  onClick={() => syncAccount(a.id)}
-                  disabled={busy === a.id}
-                  className="ml-1 rounded p-1 text-muted hover:bg-surface-sunken hover:text-foreground"
-                  title="Synchroniser"
-                >
-                  <RefreshCw className={cn("h-3.5 w-3.5", busy === a.id && "animate-spin")} />
-                </button>
+                               <div className="ml-1 flex items-center gap-0.5">
+                  <button
+                    onClick={() => syncAccount(a.id)}
+                    disabled={busy === a.id}
+                    className="rounded p-1 text-muted hover:bg-surface-sunken hover:text-foreground"
+                    title="Synchroniser les commentaires"
+                  >
+                    <RefreshCw className={cn("h-3.5 w-3.5", busy === a.id && "animate-spin")} />
+                  </button>
+                  <button
+                    onClick={() => disconnectAccount(a.id, a.name)}
+                    disabled={busy === a.id}
+                    className="rounded p-1 text-muted hover:bg-status-cancelled-bg hover:text-status-cancelled"
+                    title="Deconnecter cette page"
+                  >
+                    <Unlink className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
