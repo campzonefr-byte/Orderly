@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import {
   MessageSquare, Search, Sparkles, ShoppingBag, X,
   Send, Check, Ban, RefreshCw, Phone, MapPin, User,
-  ExternalLink, BarChart3, AlertTriangle,
+    ExternalLink, BarChart3, AlertTriangle, Unlink,
 } from "lucide-react";
 import { ConvertCommentModal } from "@/components/social/convert-comment-modal";
 
