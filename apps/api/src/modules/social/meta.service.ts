@@ -179,7 +179,7 @@ export class MetaService {
   }
 
   async listAccounts(storeIds?: string[]) {
-    const where: any = {};
+    const where: any = {isActive: true};
     if (storeIds?.length) where.storeId = { in: storeIds };
 
     const accounts = await this.prisma.socialAccount.findMany({

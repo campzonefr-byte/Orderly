@@ -175,6 +175,7 @@ function CommentsContent() {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       setBanner({ ok: true, text: `${name} deconnecte` });
+      setAccounts((prev) => prev.filter((a) => a.id !== id));
       fetchAll();
     } finally {
       setBusy("");
