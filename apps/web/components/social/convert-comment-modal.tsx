@@ -31,9 +31,7 @@ export function ConvertCommentModal({
   const [city, setCity] = useState(comment.detectedCity ?? "");
   const [address, setAddress] = useState("");
   const [deliveryCompany, setDeliveryCompany] = useState("Cosmos");
-  const [products, setProducts] = useState
-    { title: string; sku: string; quantity: number; price: number }[]
-  >([{ title: "", sku: "", quantity: 1, price: 0 }]);
+  const [products, setProducts] = useState<{ title: string; sku: string; quantity: number; price: number }[]>([{ title: "", sku: "", quantity: 1, price: 0 }]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
