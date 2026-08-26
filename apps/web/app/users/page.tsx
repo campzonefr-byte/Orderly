@@ -46,6 +46,7 @@ const ALL_PERMISSIONS = [
   { key: "settings", label: "Paramètres", description: "Paramètres du compte" },
   { key: "marketing", label: "Marketing", description: "Segments, campagnes SMS et automatisations" },
   { key: "clients", label: "Clients", description: "Voir la base clients et leurs statistiques" },
+  { key: "comments", label: "Commentaires", description: "Commentaires Facebook et Instagram" },
   { key: "chat", label: "Chat équipe", description: "Messagerie interne entre agents" },
   { key: "agents", label: "Performance agents", description: "Voir les statistiques des agents" },{ key: "archives", label: "Archives", description: "Voir et restaurer les commandes archivées" },
 ];

@@ -43,6 +43,7 @@ const NAV_ITEMS: { label: string; icon: React.ElementType; href: string; badge?:
   { label: "Archives", icon: Archive, href: "/archives", permission: "archives" },
   { label: "Produits", icon: ShoppingBag, href: "/products", permission: "products" },
   { label: "Messagerie", icon: MessageSquare, href: "/inbox", permission: "inbox" },
+  { label: "Commentaires", icon: MessageSquare, href: "/comments", permission: "comments" },
   { label: "Chat équipe", icon: MessageSquare, href: "/chat", permission: "chat" },
   { label: "Scanner QR", icon: QrCode, href: "/scanner", permission: "scanner" },
   { label: "Magasins", icon: StoreIcon, href: "/stores", permission: "stores" },
