@@ -5,8 +5,9 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class ProductsService {
   constructor(private prisma: PrismaService) {}
 
-  async listWithStats(storeIds?: string[]) {
+  async listWithStats(storeIds?: string[], activeOnly = true) {
     const where: any = {};
+    if (activeOnly) where.isActive = true;
     if (storeIds?.length) where.storeId = { in: storeIds };
 
     const products = await this.prisma.product.findMany({
@@ -285,7 +286,7 @@ export class ProductsService {
   }
 
   async summary(storeIds?: string[]) {
-    const products = await this.listWithStats(storeIds);
+    const products = await this.listWithStats(storeIds, false);
     return {
       total: products.length,
       ok: products.filter((p) => p.status === 'OK').length,
@@ -299,5 +300,8 @@ export class ProductsService {
         0,
       ),
     };
+  }
+  async listAll(storeIds?: string[]) {
+    return this.listWithStats(storeIds, false);
   }
 }

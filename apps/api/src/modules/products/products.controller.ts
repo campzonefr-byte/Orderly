@@ -19,7 +19,10 @@ import {
     summary(@Query('storeIds') storeIds?: string) {
       return this.products.summary(storeIds ? storeIds.split(',') : undefined);
     }
-  
+    @Get('all')
+  listAll(@Query('storeIds') storeIds?: string) {
+    return this.products.listAll(storeIds ? storeIds.split(',') : undefined);
+  }
     @Get(':id')
     getOne(@Param('id') id: string) {
       return this.products.getOne(id);
@@ -68,3 +71,4 @@ import {
       return this.products.remove(id);
     }
   }
+  

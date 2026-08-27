@@ -392,7 +392,42 @@ export function ProductModal({
                     />
                   </div>
                 </div>
-
+                <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
+                <div>
+                  <p className="text-xs font-medium">Statut du produit</p>
+                  <p className="text-[11px] text-muted">
+                    Les produits inactifs n'apparaissent pas dans le catalogue
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await fetch(`${API}/products/${productId}`, {
+                      method: "PATCH",
+                      headers: {
+                        Authorization: `Bearer ${getToken()}`,
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({ isActive: !product.isActive }),
+                    });
+                    await load();
+                    onUpdated();
+                  }}
+                  className={cn(
+                    "flex h-6 w-11 shrink-0 items-center rounded-full border-2 px-0.5 transition-all",
+                    product.isActive
+                      ? "border-status-delivered bg-status-delivered"
+                      : "border-border bg-surface-sunken"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "h-4 w-4 rounded-full bg-white shadow transition-transform",
+                      product.isActive ? "translate-x-5" : "translate-x-0"
+                    )}
+                  />
+                </button>
+              </div>
                 <Button
                   size="sm"
                   variant="secondary"

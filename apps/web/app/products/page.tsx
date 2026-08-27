@@ -176,7 +176,7 @@ function ProductsContent() {
     try {
       const q = `storeIds=${selectedStoreIds.join(",")}`;
       const [pRes, sRes] = await Promise.all([
-        fetch(`${API}/products?${q}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
+        fetch(`${API}/products/all?storeIds=${selectedStoreIds.join(",")}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
         fetch(`${API}/products/summary?${q}`, { headers: { Authorization: `Bearer ${getToken()}` } }),
       ]);
       const p = await pRes.json();
@@ -193,9 +193,10 @@ function ProductsContent() {
     fetchAll();
   }, [fetchAll]);
 
-
   const filtered = products.filter((p) => {
-    if (filter === "DEFECTIVE" && p.defectiveQty === 0) return false;
+    if (filter === "INACTIVE") return !p.isActive;
+    if (filter === "DEFECTIVE") return p.defectiveQty > 0;
+    if (!p.isActive && filter !== "all") return false;
     if (filter !== "all" && filter !== "DEFECTIVE" && p.status !== filter) return false;
     if (search) {
       const q = search.toLowerCase();
@@ -279,6 +280,7 @@ function ProductsContent() {
               { key: "SOON", label: "Bientot", count: summary?.soon ?? 0 },
               { key: "OK", label: "OK", count: summary?.ok ?? 0 },
               { key: "DEFECTIVE", label: "Defectueux", count: products.filter((p) => p.defectiveQty > 0).length },
+              { key: "INACTIVE", label: "Inactifs", count: products.filter((p) => !p.isActive).length },
             ].map((t) => (
               <button
                 key={t.key}
