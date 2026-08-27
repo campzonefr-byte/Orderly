@@ -155,7 +155,7 @@ function ProductsContent() {
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "OK" | "SOON" | "LOW" | "OUT" | "DEFECTIVE">("all");
+  const [filter, setFilter] = useState<"all" | "OK" | "SOON" | "LOW" | "OUT" | "DEFECTIVE" | "INACTIVE">("all");
   const [selectedStoreIds, setSelectedStoreIds] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [openId, setOpenId] = useState<string | null>(null);
