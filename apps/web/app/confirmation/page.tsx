@@ -598,7 +598,7 @@ function OrderModal({
   );
 
   const [callPhone, setCallPhone] = useState(order.customerPhone ?? "");
-  const [result, setResult] = useState("NO_ANSWER");
+  const [result, setResult] = useState<"ANSWERED_CONFIRMED" | "ANSWERED_REFUSED" | "NO_ANSWER" | "BUSY" | "WRONG_NUMBER" | "">("");
   const [callNote, setCallNote] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -1119,15 +1119,15 @@ function OrderModal({
                             aria-pressed={isSelected}
                             onClick={() => setResult(r.value as any)}
                             className={cn(
-                              "flex w-full items-center gap-4 rounded-2xl border px-4 py-3.5 text-left transition-all duration-150",
+                              "flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-all duration-150",
                               isSelected ? r.card.sel : r.card.idle
                             )}
                           >
-                            <div className={cn(
-                              "flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all duration-150",
+                                                     <div className={cn(
+                              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all duration-150",
                               isSelected ? r.badge.sel : r.badge.idle
                             )}>
-                              <Icon className="h-5 w-5" strokeWidth={2.5} />
+                                                            <Icon className="h-4 w-4" strokeWidth={2.5} />
                             </div>
                             <div className="min-w-0 flex-1">
                             <p className={cn("text-[15px] font-bold leading-tight", r.title)}>
