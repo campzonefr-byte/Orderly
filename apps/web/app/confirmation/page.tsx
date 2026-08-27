@@ -1130,7 +1130,7 @@ function OrderModal({
                               <Icon className="h-5 w-5" strokeWidth={2.5} />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className={cn("text-[15px] font-bold leading-tight", isSelected ? r.title : "text-slate-800")}>
+                            <p className={cn("text-[15px] font-bold leading-tight", r.title)}>
                                 {r.label}
                               </p>
                               <p className="mt-0.5 text-[13px] text-slate-500">{r.sub}</p>
