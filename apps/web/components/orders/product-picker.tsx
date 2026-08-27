@@ -36,7 +36,7 @@ export function useStoreProducts(storeId?: string) {
           headers: { Authorization: `Bearer ${getToken()}` },
         });
         const data = await res.json();
-        setProducts(Array.isArray(data) ? data.map((p: any) => ({
+        setProducts(Array.isArray(data) ? data.filter((p: any) => p.isActive !== false).map((p: any) => ({
           id: p.id,
           sku: p.sku,
           name: p.name,
