@@ -197,7 +197,7 @@ function ProductsContent() {
     if (filter === "INACTIVE") return !p.isActive;
     if (filter === "DEFECTIVE") return p.defectiveQty > 0;
     if (!p.isActive && filter !== "all") return false;
-    if (filter !== "all" && filter !== "DEFECTIVE" && p.status !== filter) return false;
+    if (filter !== "all" && filter !== "DEFECTIVE" && filter !== "INACTIVE" && p.status !== filter) return false;
     if (search) {
       const q = search.toLowerCase();
       if (!p.name.toLowerCase().includes(q) && !p.sku.toLowerCase().includes(q)) return false;
