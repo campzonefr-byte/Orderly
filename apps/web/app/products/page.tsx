@@ -360,9 +360,12 @@ function ProductsContent() {
                         checked={selectedIds.includes(p.id)}
                         onChange={(e) => {
                           const next = [...selectedIds];
-                          if (e.target.checked) next.push(p.id);
-                          else
-                             const idx = next.indexOf(p.id); if (idx > -1) next.splice(idx, 1);
+                          if (e.target.checked) {
+                            next.push(p.id);
+                          } else {
+                            const idx = next.indexOf(p.id);
+                            if (idx > -1) next.splice(idx, 1);
+                          }
                           setSelectedIds(next);
                         }}
                         className="h-4 w-4 accent-primary"
