@@ -579,10 +579,8 @@ function OrderModal({
   const [phone2, setPhone2] = useState(order.customerPhone2 ?? "");
   const [city, setCity] = useState(() => {
     const raw = (order.shippingAddress as any)?.city ?? "";
-    const addr = (order.shippingAddress as any)?.address1 ?? "";
     if (isValidCity(raw)) return raw;
-    const detected = detectCity(raw, addr);
-    return detected ?? "";
+    return "";
   });
   const [address, setAddress] = useState((order.shippingAddress as any)?.address1 ?? "");
   const [internalNote, setInternalNote] = useState(order.internalNote ?? "");
