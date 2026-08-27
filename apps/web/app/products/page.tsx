@@ -194,10 +194,11 @@ function ProductsContent() {
   }, [fetchAll]);
 
   const filtered = products.filter((p) => {
-    if (filter === "INACTIVE") return !p.isActive;
-    if (filter === "DEFECTIVE") return p.defectiveQty > 0;
-    if (!p.isActive && filter !== "all") return false;
-    if (filter !== "all" && filter !== "DEFECTIVE" && filter !== "INACTIVE" && p.status !== filter) return false;
+    const f = filter as string;
+    if (f === "INACTIVE") return !p.isActive;
+    if (f === "DEFECTIVE") return p.defectiveQty > 0;
+    if (!p.isActive && f !== "all") return false;
+    if (f !== "all" && p.status !== f) return false;
     if (search) {
       const q = search.toLowerCase();
       if (!p.name.toLowerCase().includes(q) && !p.sku.toLowerCase().includes(q)) return false;
