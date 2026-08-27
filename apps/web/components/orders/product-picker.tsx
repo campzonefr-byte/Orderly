@@ -17,6 +17,7 @@ export interface StoreProduct {
   quantityAvailable: number;
   lowStockThreshold: number;
   price?: number;
+  imageUrl?: string | null;
 }
 
 export function useStoreProducts(storeId?: string) {
@@ -31,11 +32,19 @@ export function useStoreProducts(storeId?: string) {
     (async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${API}/stores/${storeId}/products`, {
+        const res = await fetch(`${API}/products?storeIds=${storeId}`, {
           headers: { Authorization: `Bearer ${getToken()}` },
         });
         const data = await res.json();
-        setProducts(Array.isArray(data) ? data : []);
+        setProducts(Array.isArray(data) ? data.map((p: any) => ({
+          id: p.id,
+          sku: p.sku,
+          name: p.name,
+          quantityAvailable: p.quantityAvailable,
+          lowStockThreshold: p.lowStockThreshold,
+          price: Number(p.sellPrice ?? 0),
+          imageUrl: p.imageUrl ?? null,
+        })) : []);
       } catch {
         setProducts([]);
       } finally {
@@ -144,19 +153,30 @@ export function ProductPicker({
                 const isSelected = p.name === value;
                 return (
                   <button
-                    key={p.id}
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); pick(p); }}
-                    onMouseEnter={() => setActiveIdx(i)}
-                    className={cn(
-                      "flex w-full items-center gap-2 px-3 py-2 text-left transition-colors",
-                      i === activeIdx ? "bg-primary-soft" : "hover:bg-surface-sunken"
-                    )}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium">{p.name}</p>
-                      <p className="truncate text-[10px] text-muted font-mono">{p.sku}</p>
+                  key={p.id}
+                  type="button"
+                  onMouseDown={(e) => { e.preventDefault(); pick(p); }}
+                  onMouseEnter={() => setActiveIdx(i)}
+                  className={cn(
+                    "flex w-full items-center gap-2 px-3 py-2 text-left transition-colors",
+                    i === activeIdx ? "bg-primary-soft" : "hover:bg-surface-sunken"
+                  )}
+                >
+                  {(p as any).imageUrl ? (
+                    <img
+                      src={(p as any).imageUrl}
+                      alt=""
+                      className="h-8 w-8 shrink-0 rounded object-cover border border-border"
+                    />
+                  ) : (
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-surface-sunken border border-border">
+                      <Package className="h-3.5 w-3.5 text-muted-light" />
                     </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-medium">{p.name}</p>
+                    <p className="truncate text-[10px] text-muted font-mono">{p.sku}</p>
+                  </div>
                     <span
                       className={cn(
                         "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium",

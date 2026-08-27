@@ -50,11 +50,11 @@ function formatMoney(n: number, currency: string) {
 }
 
 const CALL_RESULTS = [
-  { value: "ANSWERED_CONFIRMED", label: "Confirmé", bg: "bg-status-delivered", text: "text-white" },
-  { value: "ANSWERED_REFUSED", label: "Refusé", bg: "bg-status-cancelled", text: "text-white" },
-  { value: "NO_ANSWER", label: "Pas de réponse", bg: "bg-surface-sunken", text: "text-muted" },
-  { value: "BUSY", label: "Occupé", bg: "bg-status-processing-bg", text: "text-status-processing" },
-  { value: "WRONG_NUMBER", label: "Mauvais numéro", bg: "bg-status-refunded-bg", text: "text-status-refunded" },
+  { value: "ANSWERED_CONFIRMED", label: "Confirmé", bg: "bg-emerald-500", text: "text-white", border: "border-emerald-600", light: "bg-emerald-50 text-emerald-700 border-emerald-300" },
+  { value: "ANSWERED_REFUSED", label: "Refusé", bg: "bg-red-500", text: "text-white", border: "border-red-600", light: "bg-red-50 text-red-700 border-red-300" },
+  { value: "NO_ANSWER", label: "Pas de réponse", bg: "bg-slate-500", text: "text-white", border: "border-slate-600", light: "bg-slate-100 text-slate-600 border-slate-300" },
+  { value: "BUSY", label: "Occupé", bg: "bg-amber-400", text: "text-white", border: "border-amber-500", light: "bg-amber-50 text-amber-700 border-amber-300" },
+  { value: "WRONG_NUMBER", label: "Mauvais numéro", bg: "bg-purple-400", text: "text-white", border: "border-purple-500", light: "bg-purple-50 text-purple-700 border-purple-300" },
 ];
 
 const RESULT_COLORS: Record<string, string> = {
@@ -1058,21 +1058,27 @@ function OrderModal({
                   <div>
                     <label className="mb-1 block text-xs font-medium text-muted">Résultat</label>
                     <div className="grid grid-cols-2 gap-2">
-  {CALL_RESULTS.map((r) => (
-    <button
-      key={r.value}
-      type="button"
-      onClick={() => setResult(r.value as any)}
-      className={cn(
-        "rounded-lg px-3 py-2 text-sm font-semibold transition-all border-2",
-        result === r.value
-          ? `${r.bg} ${r.text} border-transparent shadow-md scale-[1.02]`
-          : "border-border bg-surface text-muted hover:border-border-strong hover:text-foreground"
-      )}
-    >
-      {r.label}
-    </button>
-  ))}
+  {CALL_RESULTS.map((r) => {
+    const isSelected = result === r.value;
+    return (
+      <button
+        key={r.value}
+        type="button"
+        onClick={() => setResult(r.value as any)}
+        className={cn(
+          "relative rounded-xl border-2 px-3 py-2.5 text-left text-sm font-semibold transition-all",
+          isSelected
+            ? `${r.bg} ${r.text} ${r.border} shadow-lg scale-[1.02] ring-2 ring-offset-1`
+            : `${r.light} border hover:scale-[1.01] hover:shadow-sm`
+        )}
+      >
+        {isSelected && (
+          <span className="absolute right-2 top-1.5 text-xs">✓</span>
+        )}
+        {r.label}
+      </button>
+    );
+  })}
 </div>
                   </div>
                   <div>
