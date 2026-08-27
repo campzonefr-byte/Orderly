@@ -1057,23 +1057,62 @@ function OrderModal({
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-muted">Résultat</label>
-                    <div className="flex flex-col gap-1.5">
-                      {CALL_RESULTS.map((r) => {
+                    <div className="flex flex-col gap-1">
+                      {[
+                        { value: "ANSWERED_CONFIRMED", label: "Confirmé", sub: "Client a accepté la commande", icon: "✓", accent: "emerald" },
+                        { value: "ANSWERED_REFUSED", label: "Refusé", sub: "Client a refusé", icon: "✕", accent: "red" },
+                        { value: "NO_ANSWER", label: "Pas de réponse", sub: "Personne n'a décroché", icon: "○", accent: "slate" },
+                        { value: "BUSY", label: "Occupé", sub: "Ligne occupée", icon: "⊘", accent: "amber" },
+                        { value: "WRONG_NUMBER", label: "Mauvais numéro", sub: "Numéro incorrect", icon: "✕", accent: "purple" },
+                      ].map((r) => {
                         const isSelected = result === r.value;
+                        const ACCENTS: Record<string, { border: string; bg: string; icon: string; radio: string }> = {
+                          emerald: { border: "border-emerald-500", bg: "bg-emerald-50", icon: "text-emerald-600", radio: "bg-emerald-500 border-emerald-500" },
+                          red: { border: "border-red-500", bg: "bg-red-50", icon: "text-red-600", radio: "bg-red-500 border-red-500" },
+                          slate: { border: "border-slate-400", bg: "bg-slate-50", icon: "text-slate-500", radio: "bg-slate-500 border-slate-400" },
+                          amber: { border: "border-amber-400", bg: "bg-amber-50", icon: "text-amber-600", radio: "bg-amber-400 border-amber-400" },
+                          purple: { border: "border-purple-400", bg: "bg-purple-50", icon: "text-purple-600", radio: "bg-purple-500 border-purple-400" },
+                        };
+                        const a = ACCENTS[r.accent];
                         return (
                           <button
                             key={r.value}
                             type="button"
                             onClick={() => setResult(r.value as any)}
                             className={cn(
-                              "flex w-full items-center justify-between rounded-lg border-2 px-3 py-2 text-left text-sm font-medium transition-all",
+                              "flex w-full items-center gap-3 rounded-xl border-2 px-3 py-2.5 text-left transition-all duration-150",
                               isSelected
-                                ? `${r.bg} ${r.text} ${r.border}`
-                                : `${r.light} border`
+                                ? `${a.border} ${a.bg} shadow-sm`
+                                : "border-border bg-white hover:border-border-strong hover:bg-surface-sunken"
                             )}
                           >
-                            <span>{r.label}</span>
-                            {isSelected && <span className="text-xs font-bold">✓</span>}
+                            <div className={cn(
+                              "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-base font-bold",
+                              isSelected ? `${a.bg} ${a.icon}` : "bg-surface-sunken text-muted"
+                            )}>
+                              {r.icon}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className={cn(
+                                "text-sm font-semibold",
+                                isSelected ? a.icon : "text-foreground"
+                              )}>
+                                {r.label}
+                              </p>
+                              <p className="text-[11px] text-muted">{r.sub}</p>
+                            </div>
+                            <div className={cn(
+                              "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all",
+                              isSelected
+                                ? `${a.radio} text-white`
+                                : "border-border bg-white"
+                            )}>
+                              {isSelected && (
+                                <svg className="h-3 w-3" fill="none" viewBox="0 0 12 12">
+                                  <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              )}
+                            </div>
                           </button>
                         );
                       })}
