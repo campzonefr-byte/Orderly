@@ -22,7 +22,7 @@ function getToken() {
 }
 
 const PAGE_SIZE = 30;
-const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+const [selectedIds, setSelectedIds] = useState<Set<string>>([]);
 const STATUS_STYLE: Record<string, string> = {
   OK: "bg-status-delivered-bg text-status-delivered",
   SOON: "bg-status-processing-bg text-status-processing",
@@ -161,7 +161,7 @@ function ProductsContent() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const accessibleStores = stores.filter((s) => canAccessStore(s.id));
 
@@ -324,12 +324,12 @@ function ProductsContent() {
                 <th className="px-4 py-2.5 w-10">
                     <input
                       type="checkbox"
-                      checked={selectedIds.size === pageItems.length && pageItems.length > 0}
+                      checked={selectedIds.length === pageItems.length && pageItems.length > 0}
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setSelectedIds(new Set(pageItems.map((p) => p.id)));
+                          setSelectedIds(pageItems.map((p) => p.id));
                         } else {
-                          setSelectedIds(new Set());
+                          setSelectedIds([]);
                         }
                       }}
                       className="h-4 w-4 accent-primary"
@@ -357,11 +357,12 @@ function ProductsContent() {
                                                            <td className="px-4 py-3 w-10" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
-                        checked={selectedIds.has(p.id)}
+                        checked={selectedIds.includes(p.id)}
                         onChange={(e) => {
-                          const next = new Set(selectedIds);
-                          if (e.target.checked) next.add(p.id);
-                          else next.delete(p.id);
+                          const next = [...selectedIds];
+                          if (e.target.checked) next.push(p.id);
+                          else
+                             const idx = next.indexOf(p.id); if (idx > -1) next.splice(idx, 1);
                           setSelectedIds(next);
                         }}
                         className="h-4 w-4 accent-primary"
@@ -523,10 +524,10 @@ function ProductsContent() {
           onClose={() => setShowImport(false)}
           onImported={fetchAll}
         />
-      )}      {selectedIds.size > 0 && (
+      )}      {selectedIds.length > 0 && (
         <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 flex items-center gap-3 rounded-xl border border-border bg-surface px-5 py-3 shadow-xl">
           <span className="text-sm font-medium">
-            {selectedIds.size} produit{selectedIds.size > 1 ? "s" : ""} selectionne{selectedIds.size > 1 ? "s" : ""}
+            {selectedIds.length} produit{selectedIds.length > 1 ? "s" : ""} selectionne{selectedIds.size > 1 ? "s" : ""}
           </span>
           <Button
             size="sm"
@@ -539,7 +540,7 @@ function ProductsContent() {
                   body: JSON.stringify({ isActive: true }),
                 });
               }
-              setSelectedIds(new Set());
+              setSelectedIds([]);
               fetchAll();
             }}
           >
@@ -556,13 +557,13 @@ function ProductsContent() {
                   body: JSON.stringify({ isActive: false }),
                 });
               }
-              setSelectedIds(new Set());
+              setSelectedIds([]);
               fetchAll();
             }}
           >
             Desactiver
           </Button>
-          <button onClick={() => setSelectedIds(new Set())} className="text-muted hover:text-foreground">
+          <button onClick={() => setSelectedIds([])} className="text-muted hover:text-foreground">
             <X className="h-4 w-4" />
           </button>
         </div>
