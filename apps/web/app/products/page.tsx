@@ -530,7 +530,7 @@ function ProductsContent() {
       )}      {selectedIds.length > 0 && (
         <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 flex items-center gap-3 rounded-xl border border-border bg-surface px-5 py-3 shadow-xl">
           <span className="text-sm font-medium">
-            {selectedIds.length} produit{selectedIds.length > 1 ? "s" : ""} selectionne{selectedIds.size > 1 ? "s" : ""}
+            {selectedIds.length} produit{selectedIds.length > 1 ? "s" : ""} selectionne{selectedIds.length > 1 ? "s" : ""}
           </span>
           <Button
             size="sm"
