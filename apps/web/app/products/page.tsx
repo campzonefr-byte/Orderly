@@ -22,7 +22,7 @@ function getToken() {
 }
 
 const PAGE_SIZE = 30;
-const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
 const STATUS_STYLE: Record<string, string> = {
   OK: "bg-status-delivered-bg text-status-delivered",
   SOON: "bg-status-processing-bg text-status-processing",
