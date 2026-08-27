@@ -6,7 +6,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { useStores } from "@/lib/stores-context";
-import { NotificationCenter } from "@/components/notifications/notification-center";
+import { NotificationCenter } from "@/components/layout/notification-center";
 import {
   LayoutGrid, Phone, Package, Truck, RotateCcw, QrCode, Archive,
   Users, MessageSquare, AlertCircle, ShoppingBag, TrendingUp,
