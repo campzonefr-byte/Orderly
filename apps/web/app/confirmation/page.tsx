@@ -1057,29 +1057,24 @@ function OrderModal({
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-muted">Résultat</label>
-                    <div className="grid grid-cols-2 gap-2">
-  {CALL_RESULTS.map((r) => {
-    const isSelected = result === r.value;
-    return (
-      <button
-        key={r.value}
-        type="button"
-        onClick={() => setResult(r.value as any)}
-        className={cn(
-          "relative rounded-xl border-2 px-3 py-2.5 text-left text-sm font-semibold transition-all",
-          isSelected
-            ? `${r.bg} ${r.text} ${r.border} shadow-lg scale-[1.02] ring-2 ring-offset-1`
-            : `${r.light} border hover:scale-[1.01] hover:shadow-sm`
-        )}
-      >
-        {isSelected && (
-          <span className="absolute right-2 top-1.5 text-xs">✓</span>
-        )}
-        {r.label}
-      </button>
-    );
-  })}
-</div>
+                    <select
+                      value={result}
+                      onChange={(e) => setResult(e.target.value as any)}
+                      className={cn(
+                        "h-10 w-full rounded-lg border-2 px-3 text-sm font-semibold focus-visible:outline-none transition-colors",
+                        result === "ANSWERED_CONFIRMED" && "border-emerald-500 bg-emerald-50 text-emerald-700",
+                        result === "ANSWERED_REFUSED" && "border-red-500 bg-red-50 text-red-700",
+                        result === "NO_ANSWER" && "border-slate-300 bg-slate-50 text-slate-600",
+                        result === "BUSY" && "border-amber-400 bg-amber-50 text-amber-700",
+                        result === "WRONG_NUMBER" && "border-purple-400 bg-purple-50 text-purple-700",
+                        !result && "border-border bg-surface text-muted"
+                      )}
+                    >
+                      <option value="">-- Choisir le résultat --</option>
+                      {CALL_RESULTS.map((r) => (
+                        <option key={r.value} value={r.value}>{r.label}</option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-muted">Note</label>
