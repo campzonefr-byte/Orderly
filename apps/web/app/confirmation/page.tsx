@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
-  Phone, Search, X, ChevronLeft, ChevronRight,
+  Phone, Search, X, ChevronLeft, ChevronRight,CheckCircle2, PhoneMissed, Clock, PhoneOff,
   Plus, Trash2, Edit2, Check, Building2, Calendar, Archive, Truck,Sparkles,ArrowRightLeft,Lock, AlertTriangle,
 } from "lucide-react";
 import { Order, OrderStatus, CallAttempt } from "@/types/order";
@@ -1057,92 +1057,91 @@ function OrderModal({
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-muted">Résultat</label>
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex flex-col gap-3">
                       {[
                         {
                           value: "ANSWERED_CONFIRMED",
                           label: "Confirmé",
-                          sub: "Client a accepté",
-                          icon: "✓",
-                          unsel: "bg-emerald-50 border-emerald-200 text-emerald-700",
-                          sel: "bg-emerald-100 border-emerald-500 text-emerald-800",
-                          iconBg: "bg-emerald-100 text-emerald-600",
-                          iconBgSel: "bg-emerald-500 text-white",
-                          radio: "bg-emerald-500 border-emerald-500",
+                          sub: "Client a accepté la commande",
+                          Icon: CheckCircle2,
+                          badge: { idle: "bg-emerald-100 text-emerald-600", sel: "bg-emerald-600 text-white" },
+                          title: "text-emerald-700",
+                          card: { idle: "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50", sel: "bg-emerald-50/60 border-emerald-500 shadow-sm" },
+                          radio: "bg-emerald-600 border-emerald-600",
                         },
                         {
                           value: "ANSWERED_REFUSED",
                           label: "Refusé",
                           sub: "Client a refusé",
-                          icon: "✕",
-                          unsel: "bg-red-50 border-red-200 text-red-700",
-                          sel: "bg-red-100 border-red-500 text-red-800",
-                          iconBg: "bg-red-100 text-red-600",
-                          iconBgSel: "bg-red-500 text-white",
-                          radio: "bg-red-500 border-red-500",
+                          Icon: X,
+                          badge: { idle: "bg-red-100 text-red-600", sel: "bg-red-600 text-white" },
+                          title: "text-red-700",
+                          card: { idle: "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50", sel: "bg-red-50/60 border-red-500 shadow-sm" },
+                          radio: "bg-red-600 border-red-600",
                         },
                         {
                           value: "NO_ANSWER",
                           label: "Pas de réponse",
                           sub: "Personne n'a décroché",
-                          icon: "○",
-                          unsel: "bg-blue-50 border-blue-200 text-blue-700",
-                          sel: "bg-blue-100 border-blue-500 text-blue-800",
-                          iconBg: "bg-blue-100 text-blue-600",
-                          iconBgSel: "bg-blue-500 text-white",
-                          radio: "bg-blue-500 border-blue-500",
+                          Icon: PhoneMissed,
+                          badge: { idle: "bg-slate-100 text-slate-500", sel: "bg-slate-600 text-white" },
+                          title: "text-slate-700",
+                          card: { idle: "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50", sel: "bg-slate-50/60 border-slate-500 shadow-sm" },
+                          radio: "bg-slate-600 border-slate-600",
                         },
                         {
                           value: "BUSY",
                           label: "Occupé",
                           sub: "Ligne occupée",
-                          icon: "⊘",
-                          unsel: "bg-amber-50 border-amber-200 text-amber-700",
-                          sel: "bg-amber-100 border-amber-500 text-amber-800",
-                          iconBg: "bg-amber-100 text-amber-600",
-                          iconBgSel: "bg-amber-500 text-white",
+                          Icon: Clock,
+                          badge: { idle: "bg-amber-100 text-amber-600", sel: "bg-amber-500 text-white" },
+                          title: "text-amber-700",
+                          card: { idle: "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50", sel: "bg-amber-50/60 border-amber-500 shadow-sm" },
                           radio: "bg-amber-500 border-amber-500",
                         },
                         {
                           value: "WRONG_NUMBER",
                           label: "Mauvais numéro",
                           sub: "Numéro incorrect",
-                          icon: "⊗",
-                          unsel: "bg-purple-50 border-purple-200 text-purple-700",
-                          sel: "bg-purple-100 border-purple-500 text-purple-800",
-                          iconBg: "bg-purple-100 text-purple-600",
-                          iconBgSel: "bg-purple-500 text-white",
-                          radio: "bg-purple-500 border-purple-500",
+                          Icon: PhoneOff,
+                          badge: { idle: "bg-violet-100 text-violet-600", sel: "bg-violet-600 text-white" },
+                          title: "text-violet-700",
+                          card: { idle: "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50", sel: "bg-violet-50/60 border-violet-500 shadow-sm" },
+                          radio: "bg-violet-600 border-violet-600",
                         },
                       ].map((r) => {
                         const isSelected = result === r.value;
+                        const Icon = r.Icon;
                         return (
                           <button
                             key={r.value}
                             type="button"
+                            aria-pressed={isSelected}
                             onClick={() => setResult(r.value as any)}
                             className={cn(
-                              "flex w-full items-center gap-3 rounded-xl border-2 px-3 py-2 text-left transition-all duration-100",
-                              isSelected ? r.sel : r.unsel
+                              "flex w-full items-center gap-4 rounded-2xl border px-4 py-3.5 text-left transition-all duration-150",
+                              isSelected ? r.card.sel : r.card.idle
                             )}
                           >
                             <div className={cn(
-                              "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm font-bold transition-all",
-                              isSelected ? r.iconBgSel : r.iconBg
+                              "flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all duration-150",
+                              isSelected ? r.badge.sel : r.badge.idle
                             )}>
-                              {r.icon}
+                              <Icon className="h-5 w-5" strokeWidth={2.5} />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-semibold leading-tight">{r.label}</p>
-                              <p className="text-[10px] opacity-70">{r.sub}</p>
+                              <p className={cn("text-[15px] font-bold leading-tight", isSelected ? r.title : "text-slate-800")}>
+                                {r.label}
+                              </p>
+                              <p className="mt-0.5 text-[13px] text-slate-500">{r.sub}</p>
                             </div>
                             <div className={cn(
-                              "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all",
-                              isSelected ? r.radio : "border-current bg-white opacity-40"
+                              "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-150",
+                              isSelected ? r.radio : "border-slate-300 bg-white"
                             )}>
                               {isSelected && (
-                                <svg className="h-3 w-3" fill="none" viewBox="0 0 12 12">
-                                  <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 12 12">
+                                  <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
                               )}
                             </div>
