@@ -22,7 +22,7 @@ function getToken() {
 }
 
 const PAGE_SIZE = 30;
-
+const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 const STATUS_STYLE: Record<string, string> = {
   OK: "bg-status-delivered-bg text-status-delivered",
   SOON: "bg-status-processing-bg text-status-processing",
@@ -161,6 +161,7 @@ function ProductsContent() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const accessibleStores = stores.filter((s) => canAccessStore(s.id));
 
@@ -196,6 +197,7 @@ function ProductsContent() {
   const filtered = products.filter((p) => {
     const f = filter as string;
     if (f === "INACTIVE") return !p.isActive;
+    if (f === "ACTIVE") return p.isActive;
     if (f === "DEFECTIVE") return p.defectiveQty > 0;
     if (!p.isActive && f !== "all") return false;
     if (f !== "all" && p.status !== f) return false;
@@ -274,8 +276,9 @@ function ProductsContent() {
             />
           </div>
           <div className="flex gap-1">
-            {[
+          {[
               { key: "all", label: "Tous", count: products.length },
+              { key: "ACTIVE", label: "Actifs", count: products.filter((p) => p.isActive).length },
               { key: "OUT", label: "Rupture", count: summary?.out ?? 0 },
               { key: "LOW", label: "Stock bas", count: summary?.low ?? 0 },
               { key: "SOON", label: "Bientot", count: summary?.soon ?? 0 },
@@ -318,6 +321,20 @@ function ProductsContent() {
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-surface">
                 <tr className="border-b border-border text-left text-xs font-medium text-muted">
+                <th className="px-4 py-2.5 w-10">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size === pageItems.length && pageItems.length > 0}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedIds(new Set(pageItems.map((p) => p.id)));
+                        } else {
+                          setSelectedIds(new Set());
+                        }
+                      }}
+                      className="h-4 w-4 accent-primary"
+                    />
+                  </th>
                   <th className="px-4 py-2.5">Produit</th>
                   <th className="px-4 py-2.5">Magasin</th>
                   <th className="px-4 py-2.5">Disponible</th>
@@ -325,7 +342,8 @@ function ProductsContent() {
                   <th className="px-4 py-2.5">Seuil alerte</th>
                   <th className="px-4 py-2.5">Vendus 30j</th>
                   <th className="px-4 py-2.5">Rupture dans</th>
-                  <th className="px-4 py-2.5">Statut</th>
+                  <th className="px-4 py-2.5">Stock</th>
+                  <th className="px-4 py-2.5">Catalogue</th>
                   <th className="px-4 py-2.5"></th>
                 </tr>
               </thead>
@@ -336,6 +354,19 @@ function ProductsContent() {
                     onClick={() => setOpenId(p.id)}
                                         className="group cursor-pointer border-b border-border transition-colors hover:bg-surface-sunken"
                   >
+                                                           <td className="px-4 py-3 w-10" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(p.id)}
+                        onChange={(e) => {
+                          const next = new Set(selectedIds);
+                          if (e.target.checked) next.add(p.id);
+                          else next.delete(p.id);
+                          setSelectedIds(next);
+                        }}
+                        className="h-4 w-4 accent-primary"
+                      />
+                    </td>
                                        <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         {p.imageUrl ? (
@@ -425,6 +456,16 @@ function ProductsContent() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
+                      <span className={cn(
+                        "rounded-full px-2.5 py-1 text-xs font-medium",
+                        p.isActive
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-slate-100 text-slate-500"
+                      )}>
+                        {p.isActive ? "Actif" : "Inactif"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
                       <span className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted transition-colors group-hover:border-primary group-hover:bg-primary-soft group-hover:text-primary">
                         <Settings2 className="h-3.5 w-3.5" />
                       </span>
@@ -482,6 +523,49 @@ function ProductsContent() {
           onClose={() => setShowImport(false)}
           onImported={fetchAll}
         />
+      )}      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 flex items-center gap-3 rounded-xl border border-border bg-surface px-5 py-3 shadow-xl">
+          <span className="text-sm font-medium">
+            {selectedIds.size} produit{selectedIds.size > 1 ? "s" : ""} selectionne{selectedIds.size > 1 ? "s" : ""}
+          </span>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={async () => {
+              for (const id of selectedIds) {
+                await fetch(`${API}/products/${id}`, {
+                  method: "PATCH",
+                  headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({ isActive: true }),
+                });
+              }
+              setSelectedIds(new Set());
+              fetchAll();
+            }}
+          >
+            Activer
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={async () => {
+              for (const id of selectedIds) {
+                await fetch(`${API}/products/${id}`, {
+                  method: "PATCH",
+                  headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({ isActive: false }),
+                });
+              }
+              setSelectedIds(new Set());
+              fetchAll();
+            }}
+          >
+            Desactiver
+          </Button>
+          <button onClick={() => setSelectedIds(new Set())} className="text-muted hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       )}
     </div>
   );
