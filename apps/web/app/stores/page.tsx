@@ -11,8 +11,9 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   Plus, X, ShoppingBag, Globe, Settings2, CheckCircle2,
-  XCircle, Trash2, ArrowLeft, ExternalLink, Eye, EyeOff,
-  RefreshCw, Download, Store as StoreIcon,
+  XCircle, Trash2, ExternalLink, Eye, EyeOff,
+  RefreshCw, Download, Store as StoreIcon, ChevronDown,
+  ChevronUp, Info,
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
@@ -20,8 +21,6 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 function getToken() {
   return window.localStorage.getItem("orderly_token");
 }
-
-type SourceType = "SHOPIFY" | "CONVERTY" | "CUSTOM";
 
 interface StoreRow {
   id: string;
@@ -32,35 +31,7 @@ interface StoreRow {
   createdAt?: string;
 }
 
-const SOURCES: {
-  key: SourceType;
-  label: string;
-  desc: string;
-  icon: any;
-  tone: string;
-}[] = [
-  {
-    key: "SHOPIFY",
-    label: "Shopify",
-    desc: "Recuperer les commandes depuis votre boutique Shopify",
-    icon: ShoppingBag,
-    tone: "bg-status-delivered-bg text-status-delivered",
-  },
-  {
-    key: "CONVERTY",
-    label: "Converty",
-    desc: "Connexion en un clic via OAuth",
-    icon: Globe,
-    tone: "bg-primary-soft text-primary",
-  },
-  {
-    key: "CUSTOM",
-    label: "Manuel",
-    desc: "Magasin sans source externe, commandes creees a la main",
-    icon: Settings2,
-    tone: "bg-surface-sunken text-muted",
-  },
-];
+// ─── Add Store Modal ───────────────────────────────────────────────────────────
 
 function AddStoreModal({
   onClose,
@@ -70,11 +41,21 @@ function AddStoreModal({
   onCreated: () => void;
 }) {
   const [step, setStep] = useState<1 | 2>(1);
-  const [source, setSource] = useState<SourceType | null>(null);
+  const [source, setSource] = useState<"SHOPIFY" | "CONVERTY" | "CUSTOM" | null>(null);
   const [name, setName] = useState("");
-  const [domain, setDomain] = useState("");
-  const [token, setToken] = useState("");
-  const [showToken, setShowToken] = useState(false);
+
+  // Shopify fields
+  const [shopDomain, setShopDomain] = useState("");
+  const [shopToken, setShopToken] = useState("");
+  const [showShopToken, setShowShopToken] = useState(false);
+  const [shopInstructions, setShopInstructions] = useState(false);
+
+  // Converty fields
+  const [convertyClientId, setConvertyClientId] = useState("");
+  const [convertySecret, setConvertySecret] = useState("");
+  const [showConvertySecret, setShowConvertySecret] = useState(false);
+  const [convertyInstructions, setConvertyInstructions] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -82,35 +63,56 @@ function AddStoreModal({
     if (!name.trim() || !source) return;
     setLoading(true);
     setError("");
+
     try {
+      // Create the store
       const res = await fetch(`${API}/stores`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           name: name.trim(),
           sourceType: source === "CONVERTY" ? "MARKETPLACE" : source,
         }),
       });
       const store = await res.json();
-      if (!res.ok || !store?.id) throw new Error("Creation echouee");
+      if (!res.ok || !store?.id) throw new Error("Création échouée");
 
-      if (source === "SHOPIFY" && token.trim() && domain.trim()) {
+      // Save Shopify credentials
+      if (source === "SHOPIFY" && shopToken.trim() && shopDomain.trim()) {
         await fetch(`${API}/stores/${store.id}/credentials`, {
           method: "PATCH",
-          headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ shopDomain: domain.trim(), accessToken: token.trim() }),
+          headers: {
+            Authorization: `Bearer ${getToken()}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            shopDomain: shopDomain.trim(),
+            accessToken: shopToken.trim(),
+          }),
+        });
+        // Auto-register webhooks
+        await fetch(`${API}/integrations/shopify/${store.id}/register-webhooks`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${getToken()}` },
         });
       }
 
-      if (source === "CONVERTY") {
-        const r = await fetch(`${API}/integrations/converty/${store.id}/auth-url`, {
-          headers: { Authorization: `Bearer ${getToken()}` },
+      // Save Converty credentials
+      if (source === "CONVERTY" && convertyClientId.trim() && convertySecret.trim()) {
+        await fetch(`${API}/stores/${store.id}/converty-credentials`, {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${getToken()}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            clientId: convertyClientId.trim(),
+            clientSecret: convertySecret.trim(),
+          }),
         });
-        const data = await r.json();
-        if (data?.url) {
-          window.location.href = data.url;
-          return;
-        }
       }
 
       onCreated();
@@ -122,155 +124,231 @@ function AddStoreModal({
     }
   }
 
-  const chosen = SOURCES.find((s) => s.key === source);
+  const canCreate =
+    name.trim() &&
+    source &&
+    (source === "CUSTOM" ||
+      (source === "SHOPIFY" && shopDomain.trim() && shopToken.trim()) ||
+      (source === "CONVERTY" && convertyClientId.trim() && convertySecret.trim()));
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
-      <div className="w-full max-w-lg rounded-xl border border-border bg-surface shadow-2xl max-h-[90vh] flex flex-col">
+      <div className="w-full max-w-lg rounded-xl border border-border bg-surface shadow-2xl max-h-[92vh] flex flex-col">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <div className="flex items-center gap-2">
-            {step === 2 && (
-              <button
-                onClick={() => setStep(1)}
-                className="rounded-md p-1 text-muted hover:bg-surface-sunken"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </button>
-            )}
-            <div>
-              <h2 className="text-sm font-semibold">
-                {step === 1 ? "Ajouter un magasin" : `Configurer ${chosen?.label}`}
-              </h2>
-              <p className="text-xs text-muted">
-                {step === 1 ? "Etape 1 sur 2 — choisir la source" : "Etape 2 sur 2"}
-              </p>
-            </div>
+          <div>
+            <h2 className="text-sm font-semibold">Ajouter un magasin</h2>
+            <p className="text-xs text-muted">
+              {step === 1 ? "Étape 1 — Choisir la source" : `Étape 2 — Configurer ${source}`}
+            </p>
           </div>
           <button onClick={onClose} className="rounded-md p-1 hover:bg-surface-sunken">
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-3">
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {step === 1 ? (
-            SOURCES.map((s) => {
-              const Icon = s.icon;
-              return (
-                <button
-                  key={s.key}
-                  onClick={() => {
-                    setSource(s.key);
-                    setStep(2);
-                  }}
-                  className="flex w-full items-center gap-3 rounded-xl border-2 border-border p-4 text-left transition-colors hover:border-primary"
-                >
-                  <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-lg", s.tone)}>
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold">{s.label}</p>
-                    <p className="text-[11px] text-muted">{s.desc}</p>
-                  </div>
-                </button>
-              );
-            })
+            <div className="space-y-2">
+              {[
+                {
+                  key: "SHOPIFY" as const,
+                  label: "Shopify",
+                  desc: "Boutique Shopify — connectez via votre token d'accès",
+                  icon: ShoppingBag,
+                  tone: "bg-emerald-50 text-emerald-600 border-emerald-200",
+                },
+                {
+                  key: "CONVERTY" as const,
+                  label: "Converty",
+                  desc: "Boutique Converty — connectez via votre app Converty",
+                  icon: Globe,
+                  tone: "bg-primary-soft text-primary border-primary/20",
+                },
+                {
+                  key: "CUSTOM" as const,
+                  label: "Manuel",
+                  desc: "Commandes saisies manuellement, sans source externe",
+                  icon: Settings2,
+                  tone: "bg-surface-sunken text-muted border-border",
+                },
+              ].map((s) => {
+                const Icon = s.icon;
+                return (
+                  <button
+                    key={s.key}
+                    onClick={() => { setSource(s.key); setStep(2); }}
+                    className="flex w-full items-center gap-3 rounded-xl border-2 border-border p-4 text-left transition-colors hover:border-primary hover:bg-primary-soft/20"
+                  >
+                    <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border", s.tone)}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">{s.label}</p>
+                      <p className="text-[11px] text-muted">{s.desc}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           ) : (
-            <>
+            <div className="space-y-4">
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted">Nom du magasin</label>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="ex: Meday"
+                  placeholder={source === "SHOPIFY" ? "ex: Meday" : source === "CONVERTY" ? "ex: Shifa" : "ex: Boutique manuelle"}
                   autoFocus
                 />
               </div>
 
               {source === "SHOPIFY" && (
-                <>
+                <div className="space-y-3">
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-muted">
-                      Domaine de la boutique
-                    </label>
+                    <label className="mb-1 block text-xs font-medium text-muted">Domaine Shopify</label>
                     <Input
-                      value={domain}
-                      onChange={(e) => setDomain(e.target.value)}
+                      value={shopDomain}
+                      onChange={(e) => setShopDomain(e.target.value)}
                       placeholder="votre-boutique.myshopify.com"
                     />
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-muted">
-                      Access token
+                      Access Token <span className="text-status-cancelled">*</span>
                     </label>
                     <div className="relative">
                       <Input
-                        type={showToken ? "text" : "password"}
-                        value={token}
-                        onChange={(e) => setToken(e.target.value)}
+                        type={showShopToken ? "text" : "password"}
+                        value={shopToken}
+                        onChange={(e) => setShopToken(e.target.value)}
                         placeholder="shpat_..."
                         className="pr-8"
                       />
                       <button
                         type="button"
-                        onClick={() => setShowToken((v) => !v)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
+                        onClick={() => setShowShopToken((v) => !v)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted"
                       >
-                        {showToken ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        {showShopToken ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                       </button>
                     </div>
                   </div>
 
-                  <div className="rounded-lg bg-surface-sunken px-3 py-2.5 text-[11px] text-muted space-y-1">
-                    <p className="font-medium text-foreground">Ou trouver le token</p>
-                    <p>1. Shopify Admin → Settings → Apps and sales channels</p>
-                    <p>2. Develop apps → Create an app → nommer "Orderly"</p>
-                    <p>3. Configure Admin API scopes → cocher read_products, read_orders, write_orders, read_inventory</p>
-                    <p>4. Save → Install app → Reveal token once</p>
-                    <p className="text-status-processing">Le token n'est visible qu'une seule fois.</p>
-                  </div>
-                </>
+                  <button
+                    onClick={() => setShopInstructions((v) => !v)}
+                    className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                  >
+                    <Info className="h-3.5 w-3.5" />
+                    Comment obtenir le token ?
+                    {shopInstructions ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  </button>
+
+                  {shopInstructions && (
+                    <div className="rounded-lg bg-surface-sunken px-3 py-3 text-[11px] text-muted space-y-1.5">
+                      <p className="font-semibold text-foreground">Dans votre Shopify Admin :</p>
+                      <p>1. Settings → Apps and sales channels</p>
+                      <p>2. Develop apps → Allow custom app development</p>
+                      <p>3. Create an app → Nommer "Orderly"</p>
+                      <p>4. Configuration → Admin API scopes → Cocher :</p>
+                      <p className="font-mono pl-3">read_products, read_inventory, read_orders, read_fulfillments</p>
+                      <p>5. Save → Install app</p>
+                      <p>6. Admin API access token → <span className="font-semibold text-status-processing">Reveal token once</span></p>
+                      <p>7. Copier le token qui commence par <span className="font-mono">shpat_</span></p>
+                      <p className="text-status-cancelled font-medium">⚠️ Le token n'est visible qu'une seule fois !</p>
+                    </div>
+                  )}
+                </div>
               )}
 
               {source === "CONVERTY" && (
-                <div className="rounded-lg bg-primary-soft px-3 py-3 text-[11px] text-primary space-y-1">
-                  <p className="font-semibold">Connexion en un clic</p>
-                  <p>
-                    Apres avoir cree le magasin, vous serez redirige vers Converty pour
-                    autoriser Orderly. Les commandes et produits seront ensuite importables.
-                  </p>
-                  <p className="mt-1">Les webhooks seront enregistres automatiquement.</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">Client ID</label>
+                    <Input
+                      value={convertyClientId}
+                      onChange={(e) => setConvertyClientId(e.target.value)}
+                      placeholder="ex: 6507a1b2c3d4e5f678901234"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted">Client Secret</label>
+                    <div className="relative">
+                      <Input
+                        type={showConvertySecret ? "text" : "password"}
+                        value={convertySecret}
+                        onChange={(e) => setConvertySecret(e.target.value)}
+                        placeholder="ex: f47ac10b-58cc-..."
+                        className="pr-8"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConvertySecret((v) => !v)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted"
+                      >
+                        {showConvertySecret ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setConvertyInstructions((v) => !v)}
+                    className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                  >
+                    <Info className="h-3.5 w-3.5" />
+                    Comment obtenir les credentials ?
+                    {convertyInstructions ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  </button>
+
+                  {convertyInstructions && (
+                    <div className="rounded-lg bg-surface-sunken px-3 py-3 text-[11px] text-muted space-y-1.5">
+                      <p className="font-semibold text-foreground">Dans votre Dashboard Converty :</p>
+                      <p>1. Intégrations → Apps → Custom Apps</p>
+                      <p>2. Create → Nommer "Orderly"</p>
+                      <p>3. Redirect URL :</p>
+                      <p className="font-mono pl-3 break-all text-[10px]">
+                        {API.replace("/api", "")}/api/integrations/converty/callback
+                      </p>
+                      <p>4. Permissions → Cocher :</p>
+                      <p className="font-mono pl-3">read-orders, read-products, read-stores, create-hooks</p>
+                      <p>5. Créer → Copier le <span className="font-semibold">Client ID</span> et le <span className="font-semibold">Client Secret</span></p>
+                      <p className="text-status-cancelled font-medium">⚠️ Le secret n'est visible qu'une seule fois !</p>
+                    </div>
+                  )}
+
+                  <div className="rounded-lg bg-primary-soft px-3 py-2.5 text-[11px] text-primary">
+                    <p className="font-semibold">Après avoir saisi les credentials</p>
+                    <p className="mt-0.5">
+                      Vous serez redirigé vers Converty pour autoriser la connexion.
+                      Les commandes et produits seront ensuite importables.
+                    </p>
+                  </div>
                 </div>
               )}
 
               {source === "CUSTOM" && (
                 <div className="rounded-lg bg-surface-sunken px-3 py-2.5 text-[11px] text-muted">
-                  <p>
-                    Aucune source externe. Les commandes seront creees manuellement
-                    depuis Confirmation, Preparation ou la Messagerie.
-                  </p>
+                  Les commandes seront créées manuellement depuis Confirmation, Préparation ou la Messagerie.
                 </div>
               )}
 
               {error && (
-                <p className="rounded-md bg-status-cancelled-bg px-3 py-2 text-xs font-medium text-status-cancelled">
+                <p className="rounded-md bg-status-cancelled-bg px-3 py-2 text-xs text-status-cancelled">
                   {error}
                 </p>
               )}
-            </>
+            </div>
           )}
         </div>
 
         {step === 2 && (
           <div className="flex gap-2 border-t border-border px-5 py-4">
-            <Button variant="secondary" className="flex-1" onClick={() => setStep(1)}>
-              Retour
-            </Button>
-            <Button className="flex-1" disabled={loading || !name.trim()} onClick={create}>
-              {loading
-                ? "Creation..."
-                : source === "CONVERTY"
-                ? "Creer et connecter"
-                : "Creer le magasin"}
+            <Button variant="secondary" onClick={() => setStep(1)}>Retour</Button>
+            <Button
+              className="flex-1"
+              disabled={loading || !canCreate}
+              onClick={create}
+            >
+              {loading ? "Création..." : "Créer le magasin"}
             </Button>
           </div>
         )}
@@ -279,141 +357,71 @@ function AddStoreModal({
   );
 }
 
+// ─── Store Card ────────────────────────────────────────────────────────────────
+
 function StoreCard({
   store,
   onDeleted,
+  onRefresh,
 }: {
   store: StoreRow;
   onDeleted: () => void;
+  onRefresh: () => void;
 }) {
-  const [convertyStatus, setConvertyStatus] = useState<any>(null);
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [shopifyStatus, setShopifyStatus] = useState<any>(null);
-  const [shopDomain, setShopDomain] = useState("");
-  const isConverty = store.sourceType === "MARKETPLACE";
+  const [shopifyConnected, setShopifyConnected] = useState(false);
+  const [convertyConnected, setConvertyConnected] = useState(false);
+
   const isShopify = store.sourceType === "SHOPIFY";
-
-  const fetchConverty = useCallback(async () => {
-    if (!isConverty) return;
-    try {
-      const res = await fetch(`${API}/integrations/converty/${store.id}/status`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      setConvertyStatus(await res.json());
-    } catch {}
-  }, [store.id, isConverty]);
-
-  const fetchShopify = useCallback(async () => {
-    if (!isShopify) return;
-    try {
-      const res = await fetch(`${API}/integrations/shopify/${store.id}/status`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      const data = await res.json();
-      setShopifyStatus(data);
-      if (data?.domain) setShopDomain(data.domain);
-    } catch {}
-  }, [store.id, isShopify]);
+  const isConverty = store.sourceType === "MARKETPLACE";
+  const isCustom = !isShopify && !isConverty;
 
   useEffect(() => {
-    fetchConverty();
-    fetchShopify();
-  }, [fetchConverty, fetchShopify]);
-
-  async function connectShopify() {
-    setBusy("shopify-connect");
-    try {
-      const res = await fetch(`${API}/integrations/shopify/${store.id}/auth-url`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ shopDomain: shopDomain.trim() }),
-      });
-      const data = await res.json();
-      if (!data.ok) {
-        setMsg({ ok: false, text: data.error ?? "Erreur" });
-        return;
-      }
-      window.location.href = data.url;
-    } finally {
-      setBusy("");
-    }
-  }
-
-  async function runShopify(action: string, label: string) {
-    setBusy(action);
-    setMsg(null);
-    try {
-      const res = await fetch(`${API}/integrations/shopify/${store.id}/${action}`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setMsg({
-          ok: true,
-          text:
-            action === "test"
-              ? `Connecte a ${data.shop ?? "la boutique"}`
-              : action === "register-webhooks"
-              ? "Webhooks enregistres"
-              : `${label} : ${data.created ?? 0} crees, ${data.updated ?? 0} mis a jour`,
-        });
-      } else {
-        setMsg({ ok: false, text: data.error ?? "Echec" });
-      }
-      fetchShopify();
-    } catch {
-      setMsg({ ok: false, text: "Erreur reseau" });
-    } finally {
-      setBusy("");
-    }
-  }
-
-  async function connectConverty() {
-    setBusy("connect");
-    try {
-      const res = await fetch(`${API}/integrations/converty/${store.id}/auth-url`, {
+    if (isShopify) {
+      fetch(`${API}/integrations/shopify/${store.id}/status`, {
         headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      const data = await res.json();
-      if (data?.url) window.location.href = data.url;
-    } finally {
-      setBusy("");
+      })
+        .then((r) => r.json())
+        .then((d) => setShopifyConnected(d?.connected ?? false))
+        .catch(() => {});
     }
-  }
+    if (isConverty) {
+      fetch(`${API}/integrations/converty/${store.id}/status`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+        .then((r) => r.json())
+        .then((d) => setConvertyConnected(d?.connected ?? false))
+        .catch(() => {});
+    }
+  }, [store.id, isShopify, isConverty]);
 
-  async function run(action: string, label: string) {
-    setBusy(action);
+  async function runAction(endpoint: string, method = "POST") {
+    setBusy(endpoint);
     setMsg(null);
     try {
-      const res = await fetch(`${API}/integrations/converty/${store.id}/${action}`, {
-        method: "POST",
+      const res = await fetch(`${API}/${endpoint}`, {
+        method,
         headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: method === "POST" ? JSON.stringify({}) : undefined,
       });
       const data = await res.json();
-      if (data.ok) {
+      if (data.ok !== false) {
         const detail =
-          action === "import-products"
-            ? `${data.created} crees, ${data.updated} mis a jour`
-            : action === "import-orders"
-            ? `${data.created} importees, ${data.skipped} deja presentes`
-            : "Termine";
-        setMsg({ ok: true, text: `${label} : ${detail}` });
+          endpoint.includes("import-products")
+            ? `${data.created ?? 0} créés, ${data.updated ?? 0} mis à jour`
+            : endpoint.includes("import-orders")
+            ? `${data.created ?? 0} importées`
+            : endpoint.includes("register-webhooks")
+            ? `${data.created ?? 0} créés, ${data.updated ?? 0} mis à jour`
+            : "OK";
+        setMsg({ ok: true, text: detail });
+        onRefresh();
       } else {
-        setMsg({ ok: false, text: data.error ?? "Echec" });
+        setMsg({ ok: false, text: data.error ?? "Échec" });
       }
-      fetchConverty();
     } catch {
-      setMsg({ ok: false, text: "Erreur reseau" });
+      setMsg({ ok: false, text: "Erreur réseau" });
     } finally {
       setBusy("");
     }
@@ -430,13 +438,16 @@ function StoreCard({
 
   const Icon = isShopify ? ShoppingBag : isConverty ? Globe : Settings2;
   const tone = isShopify
-    ? "bg-status-delivered-bg text-status-delivered"
+    ? "bg-emerald-50 text-emerald-600"
     : isConverty
     ? "bg-primary-soft text-primary"
     : "bg-surface-sunken text-muted";
 
+  const isConnected = isShopify ? shopifyConnected : isConverty ? convertyConnected : true;
+  const provider = isShopify ? "shopify" : "converty";
+
   return (
-    <div className="rounded-xl border border-border bg-surface p-5">
+    <div className="rounded-xl border border-border bg-surface p-5 space-y-4">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", tone)}>
@@ -450,190 +461,82 @@ function StoreCard({
             </p>
           </div>
         </div>
-        <button
-          onClick={remove}
-          className="rounded-md p-1.5 text-muted hover:bg-status-cancelled-bg hover:text-status-cancelled"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        <div className="flex items-center gap-2">
+          {!isCustom && (
+            <span className={cn(
+              "flex items-center gap-1 rounded px-2 py-1 text-xs font-medium",
+              isConnected
+                ? "bg-status-delivered-bg text-status-delivered"
+                : "bg-status-cancelled-bg text-status-cancelled"
+            )}>
+              {isConnected
+                ? <CheckCircle2 className="h-3 w-3" />
+                : <XCircle className="h-3 w-3" />}
+              {isConnected ? "Connecté" : "Non connecté"}
+            </span>
+          )}
+          <button
+            onClick={remove}
+            className="rounded-md p-1.5 text-muted hover:bg-status-cancelled-bg hover:text-status-cancelled"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
 
-      {isConverty && (
-        <div className="mt-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium",
-                convertyStatus?.connected
-                  ? "bg-status-delivered-bg text-status-delivered"
-                  : "bg-status-onhold-bg text-muted"
-              )}
-            >
-              {convertyStatus?.connected ? (
-                <CheckCircle2 className="h-3 w-3" />
-              ) : (
-                <XCircle className="h-3 w-3" />
-              )}
-              {convertyStatus?.connected ? "Connecte" : "Non connecte"}
-            </span>
-          </div>
-
-          {convertyStatus?.connected ? (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={busy !== ""}
-                onClick={() => run("import-products", "Produits")}
-              >
-                <Download className="h-3.5 w-3.5" />
-                {busy === "import-products" ? "Import..." : "Importer produits"}
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={busy !== ""}
-                onClick={() => run("import-orders", "Commandes")}
-              >
-                <Download className="h-3.5 w-3.5" />
-                {busy === "import-orders" ? "Import..." : "Importer commandes"}
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={busy !== ""}
-                onClick={() => run("register-webhooks", "Webhooks")}
-              >
-                <RefreshCw className={cn("h-3.5 w-3.5", busy === "register-webhooks" && "animate-spin")} />
-                Webhooks
-              </Button>
-            </div>
-          ) : (
-            <Button size="sm" disabled={busy !== ""} onClick={connectConverty}>
-              <ExternalLink className="h-3.5 w-3.5" />
-              {busy === "connect" ? "Redirection..." : "Connecter Converty"}
-            </Button>
-          )}
-
-          {msg && (
-            <p
-              className={cn(
-                "rounded-md px-3 py-2 text-xs font-medium",
-                msg.ok
-                  ? "bg-status-delivered-bg text-status-delivered"
-                  : "bg-status-cancelled-bg text-status-cancelled"
-              )}
-            >
-              {msg.text}
-            </p>
-          )}
+      {!isCustom && isConnected && (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={busy !== ""}
+            onClick={() => runAction(`integrations/${provider}/${store.id}/import-products`)}
+          >
+            <Download className="h-3.5 w-3.5" />
+            {busy.includes("import-products") ? "Import..." : "Importer produits"}
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={busy !== ""}
+            onClick={() => runAction(`integrations/${provider}/${store.id}/import-orders`)}
+          >
+            <Download className="h-3.5 w-3.5" />
+            {busy.includes("import-orders") ? "Import..." : "Importer commandes"}
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={busy !== ""}
+            onClick={() => runAction(`integrations/${provider}/${store.id}/register-webhooks`)}
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", busy.includes("webhooks") && "animate-spin")} />
+            Webhooks
+          </Button>
         </div>
       )}
 
-{isShopify && (
-        <div className="mt-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium",
-                shopifyStatus?.connected
-                  ? "bg-status-delivered-bg text-status-delivered"
-                  : "bg-status-onhold-bg text-muted"
-              )}
-            >
-                        {shopifyStatus?.needsReconnect && (
-            <div className="rounded-lg bg-status-processing-bg px-3 py-2 text-[11px] text-status-processing">
-              Ancien token detecte. Reconnectez la boutique pour activer l'import
-              des produits et la gestion des webhooks.
-            </div>
-          )}
+      {!isCustom && !isConnected && (
+        <p className="text-xs text-muted">
+          Ce magasin n'est pas encore connecté. Supprimez-le et recréez-le avec les bons credentials.
+        </p>
+      )}
 
-          {shopifyStatus?.connected ? (
-                <CheckCircle2 className="h-3 w-3" />
-              ) : (
-                <XCircle className="h-3 w-3" />
-              )}
-              {shopifyStatus?.connected ? "Connecte" : "Non connecte"}
-            </span>
-            {shopifyStatus?.domain && (
-              <span className="font-mono text-[11px] text-muted">
-                {shopifyStatus.domain}
-              </span>
-            )}
-          </div>
-
-          {shopifyStatus?.connected ? (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={busy !== ""}
-                onClick={() => runShopify("test", "Test")}
-              >
-                <RefreshCw className={cn("h-3.5 w-3.5", busy === "test" && "animate-spin")} />
-                Tester
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={busy !== ""}
-                onClick={() => runShopify("import-all-products", "Produits")}
-              >
-                <Download className="h-3.5 w-3.5" />
-                {busy === "import-all-products" ? "Import..." : "Importer produits"}
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={busy !== ""}
-                onClick={() => runShopify("register-webhooks", "Webhooks")}
-              >
-                <RefreshCw className={cn("h-3.5 w-3.5", busy === "register-webhooks" && "animate-spin")} />
-                Webhooks
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-            <Button
-              size="sm"
-              className="w-full"
-              disabled={busy !== ""}
-              onClick={connectShopify}
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              {busy === "shopify-connect" ? "Redirection..." : "Connecter Shopify"}
-            </Button>
-            <details className="text-[11px] text-muted">
-              <summary className="cursor-pointer hover:text-foreground">
-                Saisir le domaine manuellement
-              </summary>
-              <Input
-                value={shopDomain}
-                onChange={(e) => setShopDomain(e.target.value)}
-                placeholder="votre-boutique.myshopify.com"
-                className="mt-2 h-8 text-xs"
-              />
-            </details>
-          </div>
-          )}
-
-          {msg && (
-            <p
-              className={cn(
-                "rounded-md px-3 py-2 text-xs font-medium",
-                msg.ok
-                  ? "bg-status-delivered-bg text-status-delivered"
-                  : "bg-status-cancelled-bg text-status-cancelled"
-              )}
-            >
-              {msg.text}
-            </p>
-          )}
-        </div>
+      {msg && (
+        <p className={cn(
+          "rounded-md px-3 py-2 text-xs font-medium",
+          msg.ok
+            ? "bg-status-delivered-bg text-status-delivered"
+            : "bg-status-cancelled-bg text-status-cancelled"
+        )}>
+          {msg.text}
+        </p>
       )}
     </div>
   );
 }
+
+// ─── Main ──────────────────────────────────────────────────────────────────────
 
 function StoresContent() {
   const searchParams = useSearchParams();
@@ -653,19 +556,14 @@ function StoresContent() {
 
   useEffect(() => {
     const c = searchParams.get("converty");
-    if (c === "connected") setBanner({ ok: true, text: "Converty connecte avec succes" });
-    if (c === "error") setBanner({ ok: false, text: "Echec de la connexion Converty" });
+    if (c === "connected") setBanner({ ok: true, text: "Converty connecté avec succès" });
+    if (c === "error") setBanner({ ok: false, text: "Échec de la connexion Converty" });
 
     const s = searchParams.get("shopify");
-    if (s === "connected") setBanner({ ok: true, text: "Shopify connecte avec succes" });
+    if (s === "connected") setBanner({ ok: true, text: "Shopify connecté avec succès" });
     if (s === "error") {
       const reason = searchParams.get("reason");
-      setBanner({
-        ok: false,
-        text: reason
-          ? `Echec Shopify : ${decodeURIComponent(reason)}`
-          : "Echec de la connexion Shopify",
-      });
+      setBanner({ ok: false, text: reason ? `Échec Shopify : ${decodeURIComponent(reason)}` : "Échec de la connexion Shopify" });
     }
   }, [searchParams]);
 
@@ -687,20 +585,13 @@ function StoresContent() {
         </header>
 
         {banner && (
-          <div
-            className={cn(
-              "flex items-center justify-between border-b px-5 py-3",
-              banner.ok
-                ? "border-status-delivered/30 bg-status-delivered-bg"
-                : "border-status-cancelled/30 bg-status-cancelled-bg"
-            )}
-          >
-            <p
-              className={cn(
-                "text-sm font-medium",
-                banner.ok ? "text-status-delivered" : "text-status-cancelled"
-              )}
-            >
+          <div className={cn(
+            "flex items-center justify-between border-b px-5 py-3",
+            banner.ok
+              ? "border-status-delivered/30 bg-status-delivered-bg"
+              : "border-status-cancelled/30 bg-status-cancelled-bg"
+          )}>
+            <p className={cn("text-sm font-medium", banner.ok ? "text-status-delivered" : "text-status-cancelled")}>
               {banner.text}
             </p>
             <button onClick={() => setBanner(null)} className="text-muted hover:text-foreground">
@@ -714,9 +605,7 @@ function StoresContent() {
             <div className="flex flex-col items-center justify-center py-24">
               <StoreIcon className="h-8 w-8 text-muted-light" />
               <p className="mt-2 text-sm font-medium">Aucun magasin</p>
-              <p className="mt-1 text-xs text-muted">
-                Ajoutez votre premiere boutique Shopify ou Converty.
-              </p>
+              <p className="mt-1 text-xs text-muted">Ajoutez votre première boutique.</p>
               <Button size="sm" className="mt-4" onClick={() => setShowAdd(true)}>
                 <Plus className="h-3.5 w-3.5" />
                 Ajouter un magasin
@@ -725,7 +614,12 @@ function StoresContent() {
           ) : (
             <div className="grid grid-cols-2 gap-4">
               {accessibleStores.map((s) => (
-                <StoreCard key={s.id} store={s as StoreRow} onDeleted={refresh} />
+                <StoreCard
+                  key={s.id}
+                  store={s as StoreRow}
+                  onDeleted={refresh}
+                  onRefresh={refresh}
+                />
               ))}
             </div>
           )}
@@ -733,7 +627,10 @@ function StoresContent() {
       </div>
 
       {showAdd && (
-        <AddStoreModal onClose={() => setShowAdd(false)} onCreated={refresh} />
+        <AddStoreModal
+          onClose={() => setShowAdd(false)}
+          onCreated={refresh}
+        />
       )}
     </div>
   );
@@ -742,13 +639,7 @@ function StoresContent() {
 export default function StoresPage() {
   return (
     <RouteGuard>
-      <Suspense
-        fallback={
-          <div className="flex h-screen items-center justify-center">
-            <p className="text-sm text-muted">Chargement...</p>
-          </div>
-        }
-      >
+      <Suspense fallback={<div className="flex h-screen items-center justify-center"><p className="text-sm text-muted">Chargement...</p></div>}>
         <StoresContent />
       </Suspense>
     </RouteGuard>

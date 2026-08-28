@@ -595,4 +595,22 @@ export class ConvertyService {
 
     return { ok: true, created, updated };
   }
+  async saveCredentials(storeId: string, clientId: string, clientSecret: string) {
+    const existing = await this.prisma.deliveryIntegration.findFirst({
+      where: { storeId, provider: 'CONVERTY' },
+    });
+
+    const credentials = { clientId, clientSecret };
+
+    if (existing) {
+      return this.prisma.deliveryIntegration.update({
+        where: { id: existing.id },
+        data: { credentials, isActive: false },
+      });
+    }
+
+    return this.prisma.deliveryIntegration.create({
+      data: { storeId, provider: 'CONVERTY', credentials, isActive: false },
+    });
+  }
 }

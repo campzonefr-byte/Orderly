@@ -73,7 +73,14 @@ export class IntegrationsController {
   ) {
     return this.converty.browseProducts(storeId, search);
   }
-
+  @UseGuards(JwtAuthGuard)
+  @Patch('converty/:storeId/credentials')
+  saveConvertyCredentials(
+    @Param('storeId') storeId: string,
+    @Body() body: { clientId: string; clientSecret: string },
+  ) {
+    return this.converty.saveCredentials(storeId, body.clientId, body.clientSecret);
+  }
   @UseGuards(JwtAuthGuard)
   @Post('converty/:storeId/import-selected')
   importSelected(
