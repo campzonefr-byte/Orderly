@@ -167,15 +167,16 @@ export class ConvertyService {
   }
 
   async getStatus(storeId: string) {
+    const { clientId } = await this.getConvertyCredentials(storeId);
     const integration = await this.prisma.deliveryIntegration.findFirst({
       where: { storeId, provider: 'CONVERTY' },
     });
-    if (!integration) return { connected: false, configured: !!this.clientId };
+    if (!integration) return { connected: false, configured: !!clientId };
 
     const creds = integration.credentials as any;
     return {
       connected: integration.isActive && !!creds?.accessToken,
-      configured: !!this.clientId,
+      configured: !!clientId,
       expiresAt: creds?.expiresAt ?? null,
       updatedAt: integration.updatedAt,
     };
