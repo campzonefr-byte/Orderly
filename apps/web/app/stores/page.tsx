@@ -539,10 +539,55 @@ function StoreCard({
         </div>
       )}
 
-      {!isCustom && !isConnected && (
-        <p className="text-xs text-muted">
-          Ce magasin n'est pas encore connecté. Supprimez-le et recréez-le avec les bons credentials.
-        </p>
+{!isCustom && !isConnected && isConverty && (
+        <Button
+          size="sm"
+          className="w-full"
+          disabled={busy !== ""}
+          onClick={async () => {
+            setBusy("connect");
+            try {
+              const res = await fetch(`${API}/integrations/converty/${store.id}/auth-url`, {
+                headers: { Authorization: `Bearer ${getToken()}` },
+              });
+              const data = await res.json();
+              if (data.url) window.location.href = data.url;
+              else setMsg({ ok: false, text: data.error ?? "Erreur" });
+            } finally {
+              setBusy("");
+            }
+          }}
+        >
+          Connecter Converty
+        </Button>
+      )}
+
+      {!isCustom && !isConnected && isShopify && (
+        <Button
+          size="sm"
+          className="w-full"
+          disabled={busy !== ""}
+          onClick={async () => {
+            setBusy("connect");
+            try {
+              const res = await fetch(`${API}/integrations/shopify/${store.id}/auth-url`, {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${getToken()}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({}),
+              });
+              const data = await res.json();
+              if (data.url) window.location.href = data.url;
+              else setMsg({ ok: false, text: data.error ?? "Erreur" });
+            } finally {
+              setBusy("");
+            }
+          }}
+        >
+          Connecter Shopify
+        </Button>
       )}
 
       {msg && (
