@@ -509,14 +509,18 @@ function StoreCard({
 
       {!isCustom && isConnected && (
         <div className="flex flex-wrap gap-2">
-          <Button
+                  <Button
             size="sm"
             variant="secondary"
             disabled={busy !== ""}
-            onClick={() => runAction(`integrations/${provider}/${store.id}/import-all-products`)}
+            onClick={() => runAction(
+              isShopify
+                ? `integrations/shopify/${store.id}/import-all-products`
+                : `integrations/converty/${store.id}/import-products`
+            )}
           >
             <Download className="h-3.5 w-3.5" />
-            {busy.includes("import-products") ? "Import..." : "Importer produits"}
+            {busy.includes("import") ? "Import..." : "Importer produits"}
           </Button>
           <Button
             size="sm"
