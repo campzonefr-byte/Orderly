@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, Res, UseGuards, SetMetadata } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, Res,Patch, UseGuards, SetMetadata } from '@nestjs/common';
 import type { Response } from 'express';
 import { ConvertyService } from './converty.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
