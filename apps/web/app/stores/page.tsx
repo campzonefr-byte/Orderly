@@ -48,6 +48,9 @@ function AddStoreModal({
   const [shopDomain, setShopDomain] = useState("");
   const [shopToken, setShopToken] = useState("");
   const [showShopToken, setShowShopToken] = useState(false);
+  const [shopClientId, setShopClientId] = useState("");
+  const [shopClientSecret, setShopClientSecret] = useState("");
+  const [showShopSecret, setShowShopSecret] = useState(false);
   const [shopInstructions, setShopInstructions] = useState(false);
 
   // Converty fields
@@ -81,23 +84,33 @@ function AddStoreModal({
       if (!res.ok || !store?.id) throw new Error("Création échouée");
 
       // Save Shopify credentials
-      if (source === "SHOPIFY" && shopToken.trim() && shopDomain.trim()) {
-        await fetch(`${API}/stores/${store.id}/credentials`, {
+      if (source === "SHOPIFY" && shopClientId.trim() && shopClientSecret.trim()) {
+        await fetch(`${API}/integrations/shopify/${store.id}/setup`, {
           method: "PATCH",
           headers: {
             Authorization: `Bearer ${getToken()}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            shopDomain: shopDomain.trim(),
-            accessToken: shopToken.trim(),
+            clientId: shopClientId.trim(),
+            clientSecret: shopClientSecret.trim(),
+            shopDomain: shopDomain.trim() || undefined,
           }),
         });
-        // Auto-register webhooks
-        await fetch(`${API}/integrations/shopify/${store.id}/register-webhooks`, {
+
+        const authRes = await fetch(`${API}/integrations/shopify/${store.id}/auth-url`, {
           method: "POST",
-          headers: { Authorization: `Bearer ${getToken()}` },
+          headers: {
+            Authorization: `Bearer ${getToken()}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ shopDomain: shopDomain.trim() }),
         });
+        const authData = await authRes.json();
+        if (authData.ok && authData.url) {
+          window.location.href = authData.url;
+          return;
+        }
       }
 
       // Save Converty credentials
@@ -125,10 +138,10 @@ function AddStoreModal({
   }
 
   const canCreate =
-    name.trim() &&
-    source &&
-    (source === "CUSTOM" ||
-      (source === "SHOPIFY" && shopDomain.trim() && shopToken.trim()) ||
+  name.trim() &&
+  source &&
+  (source === "CUSTOM" ||
+    (source === "SHOPIFY" && shopDomain.trim() && shopClientId.trim() && shopClientSecret.trim()) ||
       (source === "CONVERTY" && convertyClientId.trim() && convertySecret.trim()));
 
   return (
@@ -203,62 +216,72 @@ function AddStoreModal({
               </div>
 
               {source === "SHOPIFY" && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-muted">Domaine Shopify</label>
-                    <Input
-                      value={shopDomain}
-                      onChange={(e) => setShopDomain(e.target.value)}
-                      placeholder="votre-boutique.myshopify.com"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-muted">
-                      Access Token <span className="text-status-cancelled">*</span>
-                    </label>
-                    <div className="relative">
+                  <div className="space-y-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-muted">Domaine Shopify</label>
                       <Input
-                        type={showShopToken ? "text" : "password"}
-                        value={shopToken}
-                        onChange={(e) => setShopToken(e.target.value)}
-                        placeholder="shpat_..."
-                        className="pr-8"
+                        value={shopDomain}
+                        onChange={(e) => setShopDomain(e.target.value)}
+                        placeholder="votre-boutique.myshopify.com"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowShopToken((v) => !v)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted"
-                      >
-                        {showShopToken ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                      </button>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-muted">Client ID</label>
+                      <Input
+                        value={shopClientId}
+                        onChange={(e) => setShopClientId(e.target.value)}
+                        placeholder="db7b4594df893e391f0b7056701d3f1e"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-muted">Client Secret</label>
+                      <div className="relative">
+                        <Input
+                          type={showShopSecret ? "text" : "password"}
+                          value={shopClientSecret}
+                          onChange={(e) => setShopClientSecret(e.target.value)}
+                          placeholder="shpss_..."
+                          className="pr-8"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowShopSecret((v) => !v)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted"
+                        >
+                          {showShopSecret ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setShopInstructions((v) => !v)}
+                      className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                    >
+                      <Info className="h-3.5 w-3.5" />
+                      Comment créer l'app Shopify ?
+                      {shopInstructions ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                    </button>
+
+                    {shopInstructions && (
+                      <div className="rounded-lg bg-surface-sunken px-3 py-3 text-[11px] text-muted space-y-1.5">
+                        <p className="font-semibold text-foreground">Dans Partners.shopify.com :</p>
+                        <p>1. Apps → Create app → Create app manually</p>
+                        <p>2. Nom : Orderly</p>
+                        <p>3. App URL : <span className="font-mono">https://orderly-production-641f.up.railway.app</span></p>
+                        <p>4. Redirect URL :</p>
+                        <p className="font-mono pl-3 text-[10px] break-all">https://orderly-production-641f.up.railway.app/api/integrations/shopify/callback</p>
+                        <p>5. Scopes : <span className="font-mono">read_products,read_inventory,read_orders,read_fulfillments</span></p>
+                        <p>6. Legacy install flow : ON</p>
+                        <p>7. Save → copier Client ID et Client Secret</p>
+                      </div>
+                    )}
+
+                    <div className="rounded-lg bg-primary-soft px-3 py-2.5 text-[11px] text-primary">
+                      <p className="font-semibold">Après avoir saisi les credentials</p>
+                      <p className="mt-0.5">Vous serez redirigé vers Shopify pour autoriser la connexion.</p>
                     </div>
                   </div>
-
-                  <button
-                    onClick={() => setShopInstructions((v) => !v)}
-                    className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
-                  >
-                    <Info className="h-3.5 w-3.5" />
-                    Comment obtenir le token ?
-                    {shopInstructions ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                  </button>
-
-                  {shopInstructions && (
-                    <div className="rounded-lg bg-surface-sunken px-3 py-3 text-[11px] text-muted space-y-1.5">
-                      <p className="font-semibold text-foreground">Dans votre Shopify Admin :</p>
-                      <p>1. Settings → Apps and sales channels</p>
-                      <p>2. Develop apps → Allow custom app development</p>
-                      <p>3. Create an app → Nommer "Orderly"</p>
-                      <p>4. Configuration → Admin API scopes → Cocher :</p>
-                      <p className="font-mono pl-3">read_products, read_inventory, read_orders, read_fulfillments</p>
-                      <p>5. Save → Install app</p>
-                      <p>6. Admin API access token → <span className="font-semibold text-status-processing">Reveal token once</span></p>
-                      <p>7. Copier le token qui commence par <span className="font-mono">shpat_</span></p>
-                      <p className="text-status-cancelled font-medium">⚠️ Le token n'est visible qu'une seule fois !</p>
-                    </div>
-                  )}
-                </div>
-              )}
+                )}
 
               {source === "CONVERTY" && (
                 <div className="space-y-3">

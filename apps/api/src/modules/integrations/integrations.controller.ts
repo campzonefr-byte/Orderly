@@ -48,7 +48,14 @@ export class IntegrationsController {
   getStatus(@Param('storeId') storeId: string) {
     return this.converty.getStatus(storeId);
   }
-
+  @UseGuards(JwtAuthGuard)
+  @Patch('shopify/:storeId/setup')
+  async shopifySetup(
+    @Param('storeId') storeId: string,
+    @Body() body: { clientId: string; clientSecret: string; shopDomain?: string },
+  ) {
+    return this.shopify.saveShopifySetup(storeId, body);
+  }
   @UseGuards(JwtAuthGuard)
   @Post('converty/:storeId/disconnect')
   disconnect(@Param('storeId') storeId: string) {

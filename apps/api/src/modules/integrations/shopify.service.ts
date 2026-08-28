@@ -242,17 +242,24 @@ export class ShopifyService {
 
     return this.importSelectedProducts(storeId, selections);
   }
-  private get clientId() {
-    return process.env.SHOPIFY_CLIENT_ID ?? '';
-  }
-  private get clientSecret() {
-    return process.env.SHOPIFY_CLIENT_SECRET ?? '';
-  }
   private get redirectUri() {
-    return process.env.SHOPIFY_REDIRECT_URI ?? '';
+    return process.env.SHOPIFY_REDIRECT_URI ?? 
+      'https://orderly-production-641f.up.railway.app/api/integrations/shopify/callback';
   }
 
-  getAuthUrl(storeId: string, shopDomain?: string) {
+  private async getShopifyCredentials(storeId: string) {
+    const store = await this.prisma.store.findUnique({ where: { id: storeId } });
+    const creds = store?.credentials as any ?? {};
+    return {
+      clientId: creds.shopifyClientId as string ?? process.env.SHOPIFY_CLIENT_ID ?? '',
+      clientSecret: creds.shopifyClientSecret as string ?? process.env.SHOPIFY_CLIENT_SECRET ?? '',
+    };
+  }
+
+  async getAuthUrl(storeId: string, shopDomain?: string) {
+    const { clientId } = await this.getShopifyCredentials(storeId);
+    if (!clientId) return { ok: false, error: 'Client ID Shopify manquant pour ce magasin' };
+
     const scopes = 'read_products,read_inventory,read_orders,read_fulfillments';
     const nonce = Math.random().toString(36).slice(2);
     const domain = (shopDomain ?? '')
@@ -263,10 +270,9 @@ export class ShopifyService {
 
     const state = `${storeId}::${domain}::${nonce}`;
 
-    // Known domain: direct authorization
     if (domain.endsWith('.myshopify.com')) {
       const params = new URLSearchParams({
-        client_id: this.clientId,
+        client_id: clientId,
         scope: scopes,
         redirect_uri: this.redirectUri,
         state,
@@ -277,39 +283,34 @@ export class ShopifyService {
       };
     }
 
-    // No domain: let Shopify ask which store to install on
     return {
       ok: true,
-      url: `https://admin.shopify.com/oauth/install?client_id=${this.clientId}&state=${encodeURIComponent(state)}`,
+      url: `https://admin.shopify.com/oauth/install?client_id=${clientId}&state=${encodeURIComponent(state)}`,
       needsStorePicker: true,
     };
   }
-
   async handleCallback(code: string, state: string, shop: string) {
-    const [storeId, domainFromState] = (state ?? '').split('::');
+    const [storeId] = (state ?? '').split('::');
     if (!storeId) return { ok: false, error: 'State invalide' };
 
     const norm = (d?: string) =>
-      (d ?? '')
-        .toLowerCase()
-        .replace(/^https?:\/\//, '')
-        .replace(/\/$/, '')
-        .trim();
+      (d ?? '').toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '').trim();
 
-    const shopNorm = norm(shop);
-    const stateNorm = norm(domainFromState);
-
-    // Shopify is the source of truth
-    const domain = shopNorm || stateNorm;
+    const domain = norm(shop) || norm(state.split('::')[1]);
     if (!domain) return { ok: false, error: 'Domaine introuvable' };
 
-  try {
+    const { clientId, clientSecret } = await this.getShopifyCredentials(storeId);
+    if (!clientId || !clientSecret) {
+      return { ok: false, error: 'Credentials Shopify manquants pour ce magasin' };
+    }
+
+    try {
       const res = await fetch(`https://${domain}/admin/oauth/access_token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          client_id: this.clientId,
-          client_secret: this.clientSecret,
+          client_id: clientId,
+          client_secret: clientSecret,
           code,
         }),
       });
@@ -387,5 +388,27 @@ export class ShopifyService {
     }
 
     return { ok: results.some((r) => r.ok), results };
+  }
+  async saveShopifySetup(storeId: string, data: {
+    clientId: string;
+    clientSecret: string;
+    shopDomain?: string;
+  }) {
+    const store = await this.prisma.store.findUnique({ where: { id: storeId } });
+    const existing = (store?.credentials as any) ?? {};
+
+    await this.prisma.store.update({
+      where: { id: storeId },
+      data: {
+        credentials: {
+          ...existing,
+          shopifyClientId: data.clientId,
+          shopifyClientSecret: data.clientSecret,
+          ...(data.shopDomain && { shopDomain: data.shopDomain }),
+        },
+      },
+    });
+
+    return { ok: true };
   }
 }
