@@ -513,7 +513,7 @@ function StoreCard({
             size="sm"
             variant="secondary"
             disabled={busy !== ""}
-            onClick={() => runAction(`integrations/${provider}/${store.id}/import-products`)}
+            onClick={() => runAction(`integrations/${provider}/${store.id}/import-all-products`)}
           >
             <Download className="h-3.5 w-3.5" />
             {busy.includes("import-products") ? "Import..." : "Importer produits"}
