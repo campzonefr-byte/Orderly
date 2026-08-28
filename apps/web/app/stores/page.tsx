@@ -113,20 +113,20 @@ function AddStoreModal({
         }
       }
 
-      // Save Converty credentials
-      if (source === "CONVERTY" && convertyClientId.trim() && convertySecret.trim()) {
-        await fetch(`${API}/stores/${store.id}/converty-credentials`, {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${getToken()}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            clientId: convertyClientId.trim(),
-            clientSecret: convertySecret.trim(),
-          }),
-        });
-      }
+           // Save Converty credentials
+           if (source === "CONVERTY" && convertyClientId.trim() && convertySecret.trim()) {
+            await fetch(`${API}/integrations/converty/${store.id}/credentials`, {
+              method: "PATCH",
+              headers: {
+                Authorization: `Bearer ${getToken()}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                clientId: convertyClientId.trim(),
+                clientSecret: convertySecret.trim(),
+              }),
+            });
+          }
 
       onCreated();
       onClose();
