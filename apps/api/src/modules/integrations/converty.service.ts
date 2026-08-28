@@ -30,8 +30,8 @@ export class ConvertyService {
     });
     const creds = integration?.credentials as any ?? {};
     return {
-      clientId: creds.clientId as string || process.env.CONVERTY_CLIENT_ID || '',
-      clientSecret: creds.clientSecret as string || process.env.CONVERTY_CLIENT_SECRET || '',
+      clientId: (creds.clientId as string) ?? '',
+      clientSecret: (creds.clientSecret as string) ?? '',
     };
   }
   private get redirectUri() {
@@ -40,6 +40,9 @@ export class ConvertyService {
 
   async getAuthUrl(storeId: string) {
     const { clientId } = await this.getConvertyCredentials(storeId);
+    if (!clientId) {
+      return { url: null, error: 'Client ID manquant pour ce magasin. Vérifiez les credentials.' };
+    }
     
     const scopes = [
       'read-orders',
@@ -171,7 +174,7 @@ export class ConvertyService {
     const integration = await this.prisma.deliveryIntegration.findFirst({
       where: { storeId, provider: 'CONVERTY' },
     });
-    if (!integration) return { connected: false, configured: !!clientId };
+        if (!integration) return { connected: false, configured: false };
 
     const creds = integration.credentials as any;
     return {
