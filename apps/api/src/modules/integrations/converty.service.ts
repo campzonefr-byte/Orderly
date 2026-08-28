@@ -24,17 +24,23 @@ const STATUS_MAP: Record<string, OrderStatus> = {
 export class ConvertyService {
   constructor(private prisma: PrismaService) {}
 
-  private get clientId() {
-    return process.env.CONVERTY_CLIENT_ID ?? '';
-  }
-  private get clientSecret() {
-    return process.env.CONVERTY_CLIENT_SECRET ?? '';
+  private async getConvertyCredentials(storeId: string) {
+    const integration = await this.prisma.deliveryIntegration.findFirst({
+      where: { storeId, provider: 'CONVERTY' },
+    });
+    const creds = integration?.credentials as any ?? {};
+    return {
+      clientId: creds.clientId as string || process.env.CONVERTY_CLIENT_ID || '',
+      clientSecret: creds.clientSecret as string || process.env.CONVERTY_CLIENT_SECRET || '',
+    };
   }
   private get redirectUri() {
     return process.env.CONVERTY_REDIRECT_URI ?? '';
   }
 
-  getAuthUrl(storeId: string) {
+  async getAuthUrl(storeId: string) {
+    const { clientId } = await this.getConvertyCredentials(storeId);
+    
     const scopes = [
       'read-orders',
       'create-orders',
@@ -47,7 +53,7 @@ export class ConvertyService {
 
     const params = new URLSearchParams({
       response_type: 'code',
-      client_id: this.clientId,
+      client_id: clientId,
       redirect_uri: this.redirectUri,
       scope: scopes,
       state: storeId,
@@ -58,11 +64,13 @@ export class ConvertyService {
 
   async handleCallback(code: string, storeId: string) {
     try {
+      const { clientId, clientSecret } = await this.getConvertyCredentials(storeId);
+
       const body = new URLSearchParams({
         grant_type: 'authorization_code',
         code,
-        client_id: this.clientId,
-        client_secret: this.clientSecret,
+        client_id: clientId,
+        client_secret: clientSecret,
       });
 
       const res = await fetch(CONVERTY_TOKEN, {
@@ -88,9 +96,15 @@ export class ConvertyService {
       Date.now() + (Number(data.expires_in ?? 3600) - 300) * 1000,
     ).toISOString();
 
+    const existing2 = await this.prisma.deliveryIntegration.findFirst({
+      where: { storeId, provider: 'CONVERTY' },
+    });
+    const existingCreds = (existing2?.credentials as any) ?? {};
+
     const credentials = {
+      ...existingCreds,
       accessToken: data.access_token,
-      refreshToken: data.refresh_token ?? null,
+      refreshToken: data.refresh_token ?? existingCreds.refreshToken ?? null,
       expiresAt,
     };
 
@@ -125,11 +139,12 @@ export class ConvertyService {
     if (!creds.refreshToken) return creds.accessToken;
 
     try {
+      const { clientId, clientSecret } = await this.getConvertyCredentials(storeId);
       const body = new URLSearchParams({
         grant_type: 'refresh_token',
         refresh_token: creds.refreshToken,
-        client_id: this.clientId,
-        client_secret: this.clientSecret,
+        client_id: clientId,
+        client_secret: clientSecret,
       });
 
       const res = await fetch(CONVERTY_TOKEN, {
