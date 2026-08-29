@@ -43,26 +43,25 @@ export class CosmosService {
   constructor(private prisma: PrismaService) {}
 
   private async getConfig(storeId: string) {
-    const integration = await this.prisma.deliveryIntegration.findFirst({
-      where: { storeId, provider: 'COSMOS', isActive: true },
+    const link = await this.prisma.deliveryIntegrationStore.findFirst({
+      where: { storeId },
+      include: { integration: true },
     });
-    if (!integration) return null;
-    const creds = integration.credentials as any;
-    return { token: creds?.token as string };
+
+    if (!link) return null;
+    const creds = link.integration.credentials as any;
+    if (!creds?.token) return null;
+
+    return {
+      token: creds.token as string,
+      integrationId: link.integrationId,
+    };
   }
 
-  async saveConfig(storeId: string, token: string) {
-    const existing = await this.prisma.deliveryIntegration.findFirst({
-      where: { storeId, provider: 'COSMOS' },
-    });
-    if (existing) {
-      return this.prisma.deliveryIntegration.update({
-        where: { id: existing.id },
-        data: { credentials: { token }, isActive: true },
-      });
-    }
-    return this.prisma.deliveryIntegration.create({
-      data: { storeId, provider: 'COSMOS', credentials: { token }, isActive: true },
+  async saveConfig(integrationId: string, token: string) {
+    return this.prisma.deliveryIntegration.update({
+      where: { id: integrationId },
+      data: { credentials: { token }, isActive: true },
     });
   }
 
@@ -396,5 +395,104 @@ export class CosmosService {
     } catch (e: any) {
       return { ok: false, error: e?.message ?? 'Erreur reseau' };
     }
+  }
+  async listIntegrations() {
+    return this.prisma.deliveryIntegration.findMany({
+      where: { provider: 'COSMOS' },
+      include: {
+        stores: {
+          include: { store: { select: { id: true, name: true } } },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async createIntegration(name: string, token: string) {
+    return this.prisma.deliveryIntegration.create({
+      data: {
+        name,
+        provider: 'COSMOS',
+        credentials: { token },
+        isActive: true,
+      },
+    });
+  }
+
+  async deleteIntegration(id: string) {
+    return this.prisma.deliveryIntegration.delete({ where: { id } });
+  }
+
+  async linkStore(integrationId: string, storeId: string) {
+    // A store can only be linked to one delivery integration
+    await this.prisma.deliveryIntegrationStore.deleteMany({
+      where: { storeId },
+    });
+    return this.prisma.deliveryIntegrationStore.create({
+      data: { integrationId, storeId },
+    });
+  }
+
+  async unlinkStore(integrationId: string, storeId: string) {
+    return this.prisma.deliveryIntegrationStore.deleteMany({
+      where: { integrationId, storeId },
+    });
+  }
+
+  async updateToken(integrationId: string, token: string) {
+    const integration = await this.prisma.deliveryIntegration.findUnique({
+      where: { id: integrationId },
+    });
+    const existing = (integration?.credentials as any) ?? {};
+    return this.prisma.deliveryIntegration.update({
+      where: { id: integrationId },
+      data: { credentials: { ...existing, token } },
+    });
+  }
+
+  async testConnectionById(integrationId: string) {
+    const integration = await this.prisma.deliveryIntegration.findUnique({
+      where: { id: integrationId },
+    });
+    if (!integration) return { ok: false, error: 'Integration introuvable' };
+    const creds = integration.credentials as any;
+    if (!creds?.token) return { ok: false, error: 'Token manquant' };
+
+    try {
+      const res = await fetch(`${COSMOS_BASE}/orders?page=1&limit=1`, {
+        headers: { Authorization: `Bearer ${creds.token}` },
+      });
+      const raw = await res.text();
+      if (raw.trim().startsWith('<')) {
+        return { ok: false, error: `HTML recu (HTTP ${res.status})` };
+      }
+      const data = JSON.parse(raw);
+      if (!res.ok) return { ok: false, error: data?.message ?? `HTTP ${res.status}` };
+      return { ok: true, message: `Connexion reussie · ${data?.count ?? 0} commandes` };
+    } catch (e: any) {
+      return { ok: false, error: e?.message ?? 'Erreur reseau' };
+    }
+  }
+
+  async syncAllStores() {
+    const integrations = await this.prisma.deliveryIntegration.findMany({
+      where: { provider: 'COSMOS', isActive: true },
+      include: { stores: { select: { storeId: true } } },
+    });
+
+    let totalChecked = 0;
+    let totalUpdated = 0;
+
+    for (const integration of integrations) {
+      for (const { storeId } of integration.stores) {
+        const r: any = await this.syncStatuses(storeId);
+        if (r?.ok) {
+          totalChecked += r.checked ?? 0;
+          totalUpdated += r.updated ?? 0;
+        }
+      }
+    }
+
+    return { ok: true, checked: totalChecked, updated: totalUpdated };
   }
 }

@@ -77,7 +77,7 @@ model Store {
   orders          Order[]
   products        Product[]
   userAccess      UserStoreAccess[]
-  deliveryConfigs DeliveryIntegration[]
+  deliveryIntegrations DeliveryIntegrationStore[]
   socialAccounts  SocialAccount[]
 
   createdAt       DateTime        @default(now())
@@ -272,18 +272,32 @@ model InventoryLog {
 // ----------- DELIVERY -----------
 
 model DeliveryIntegration {
-  id            String   @id @default(cuid())
-  storeId       String
-  store         Store    @relation(fields: [storeId], references: [id])
+  id          String   @id @default(cuid())
+  name        String   @default("Cosmos")
+  provider    String   // COSMOS, ARAMEX, TUNISIE_EXPRESS
+  credentials Json
+  isActive    Boolean  @default(true)
+  notes       String?
 
-  provider      String
-  credentials   Json
-  statusMapping Json?
-  isActive      Boolean  @default(true)
+  stores      DeliveryIntegrationStore[]
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
+  @@index([provider])
+}
+
+model DeliveryIntegrationStore {
+  id              String              @id @default(cuid())
+  integrationId   String
+  integration     DeliveryIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  storeId         String
+  store           Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+
+  @@unique([integrationId, storeId])
+  @@unique([storeId, integrationId])
   @@index([storeId])
 }
 
