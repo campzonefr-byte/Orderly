@@ -22,18 +22,18 @@ export class CosmosSyncService {
     this.running = true;
 
     try {
-      const integrations = await this.prisma.deliveryIntegration.findMany({
-        where: { provider: 'COSMOS', isActive: true },
+      const links = await this.prisma.deliveryIntegrationStore.findMany({
+        where: { integration: { provider: 'COSMOS', isActive: true } },
         select: { storeId: true },
       });
 
-      if (integrations.length === 0) return;
+      if (links.length === 0) return;
 
       let totalChecked = 0;
       let totalUpdated = 0;
 
-      for (const i of integrations) {
-        const r: any = await this.cosmos.syncStatuses(i.storeId);
+      for (const l of links) {
+        const r: any = await this.cosmos.syncStatuses(l.storeId);
         if (r?.ok) {
           totalChecked += r.checked ?? 0;
           totalUpdated += r.updated ?? 0;
@@ -41,9 +41,7 @@ export class CosmosSyncService {
       }
 
       if (totalUpdated > 0) {
-        this.logger.log(
-          `Sync terminee — ${totalChecked} verifiees, ${totalUpdated} mises a jour`,
-        );
+        this.logger.log(`Sync terminee — ${totalChecked} verifiees, ${totalUpdated} mises a jour`);
       }
     } catch (e: any) {
       this.logger.error(`Sync echouee: ${e?.message}`);
@@ -53,15 +51,15 @@ export class CosmosSyncService {
   }
 
   async runNow() {
-    const integrations = await this.prisma.deliveryIntegration.findMany({
-      where: { provider: 'COSMOS', isActive: true },
+    const links = await this.prisma.deliveryIntegrationStore.findMany({
+      where: { integration: { provider: 'COSMOS', isActive: true } },
       select: { storeId: true },
     });
 
     const results: any[] = [];
-    for (const i of integrations) {
-      const r = await this.cosmos.syncStatuses(i.storeId);
-      results.push({ storeId: i.storeId, ...r });
+    for (const l of links) {
+      const r = await this.cosmos.syncStatuses(l.storeId);
+      results.push({ storeId: l.storeId, ...r });
     }
     return { ok: true, results };
   }

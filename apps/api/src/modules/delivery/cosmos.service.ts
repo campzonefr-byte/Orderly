@@ -66,15 +66,17 @@ export class CosmosService {
   }
 
   async getStatus(storeId: string) {
-    const integration = await this.prisma.deliveryIntegration.findFirst({
-      where: { storeId, provider: 'COSMOS' },
+    const link = await this.prisma.deliveryIntegrationStore.findFirst({
+      where: { storeId, integration: { provider: 'COSMOS' } },
+      include: { integration: true },
     });
-    if (!integration) return { connected: false };
-    const creds = integration.credentials as any;
+    if (!link) return { connected: false };
+    const creds = link.integration.credentials as any;
     return {
-      connected: integration.isActive && !!creds?.token,
+      connected: link.integration.isActive && !!creds?.token,
       hasToken: !!creds?.token,
-      updatedAt: integration.updatedAt,
+      integrationName: link.integration.name,
+      updatedAt: link.integration.updatedAt,
     };
   }
 

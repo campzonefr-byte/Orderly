@@ -25,10 +25,8 @@ export class ConvertyService {
   constructor(private prisma: PrismaService) {}
 
   private async getConvertyCredentials(storeId: string) {
-    const integration = await this.prisma.deliveryIntegration.findFirst({
-      where: { storeId, provider: 'CONVERTY' },
-    });
-    const creds = integration?.credentials as any ?? {};
+    const store = await this.prisma.store.findUnique({ where: { id: storeId } });
+    const creds = ((store?.credentials as any) ?? {}).converty ?? {};
     return {
       clientId: (creds.clientId as string) ?? '',
       clientSecret: (creds.clientSecret as string) ?? '',
@@ -99,42 +97,31 @@ export class ConvertyService {
       Date.now() + (Number(data.expires_in ?? 3600) - 300) * 1000,
     ).toISOString();
 
-    const existing2 = await this.prisma.deliveryIntegration.findFirst({
-      where: { storeId, provider: 'CONVERTY' },
-    });
-    const existingCreds = (existing2?.credentials as any) ?? {};
+    const store = await this.prisma.store.findUnique({ where: { id: storeId } });
+    const all = (store?.credentials as any) ?? {};
+    const existingConverty = all.converty ?? {};
 
-    const credentials = {
-      ...existingCreds,
-      accessToken: data.access_token,
-      refreshToken: data.refresh_token ?? existingCreds.refreshToken ?? null,
-      expiresAt,
-    };
-
-    const existing = await this.prisma.deliveryIntegration.findFirst({
-      where: { storeId, provider: 'CONVERTY' },
-    });
-
-    if (existing) {
-      return this.prisma.deliveryIntegration.update({
-        where: { id: existing.id },
-        data: { credentials, isActive: true },
-      });
-    }
-
-    return this.prisma.deliveryIntegration.create({
-      data: { storeId, provider: 'CONVERTY', credentials, isActive: true },
+    return this.prisma.store.update({
+      where: { id: storeId },
+      data: {
+        credentials: {
+          ...all,
+          converty: {
+            ...existingConverty,
+            accessToken: data.access_token,
+            refreshToken: data.refresh_token ?? existingConverty.refreshToken ?? null,
+            expiresAt,
+            isActive: true,
+          },
+        },
+      },
     });
   }
-
   private async getValidToken(storeId: string): Promise<string | null> {
-    const integration = await this.prisma.deliveryIntegration.findFirst({
-      where: { storeId, provider: 'CONVERTY', isActive: true },
-    });
-    if (!integration) return null;
+    const store = await this.prisma.store.findUnique({ where: { id: storeId } });
+    const creds = ((store?.credentials as any) ?? {}).converty ?? {};
 
-    const creds = integration.credentials as any;
-    if (!creds?.accessToken) return null;
+    if (!creds?.accessToken || creds.isActive === false) return null;
 
     if (creds.expiresAt && new Date(creds.expiresAt) > new Date()) {
       return creds.accessToken;
@@ -170,29 +157,26 @@ export class ConvertyService {
   }
 
   async getStatus(storeId: string) {
-    const { clientId } = await this.getConvertyCredentials(storeId);
-    const integration = await this.prisma.deliveryIntegration.findFirst({
-      where: { storeId, provider: 'CONVERTY' },
-    });
-        if (!integration) return { connected: false, configured: false };
+    const store = await this.prisma.store.findUnique({ where: { id: storeId } });
+    const creds = ((store?.credentials as any) ?? {}).converty ?? {};
 
-    const creds = integration.credentials as any;
     return {
-      connected: integration.isActive && !!creds?.accessToken,
-      configured: !!clientId,
-      expiresAt: creds?.expiresAt ?? null,
-      updatedAt: integration.updatedAt,
+      connected: creds.isActive !== false && !!creds.accessToken,
+      configured: !!creds.clientId,
+      expiresAt: creds.expiresAt ?? null,
     };
   }
 
   async disconnect(storeId: string) {
-    const integration = await this.prisma.deliveryIntegration.findFirst({
-      where: { storeId, provider: 'CONVERTY' },
-    });
-    if (!integration) return { ok: true };
-    await this.prisma.deliveryIntegration.update({
-      where: { id: integration.id },
-      data: { isActive: false },
+    const store = await this.prisma.store.findUnique({ where: { id: storeId } });
+    const all = (store?.credentials as any) ?? {};
+    const converty = all.converty ?? {};
+
+    await this.prisma.store.update({
+      where: { id: storeId },
+      data: {
+        credentials: { ...all, converty: { ...converty, isActive: false } },
+      },
     });
     return { ok: true };
   }
@@ -615,21 +599,18 @@ export class ConvertyService {
     return { ok: true, created, updated };
   }
   async saveCredentials(storeId: string, clientId: string, clientSecret: string) {
-    const existing = await this.prisma.deliveryIntegration.findFirst({
-      where: { storeId, provider: 'CONVERTY' },
-    });
+    const store = await this.prisma.store.findUnique({ where: { id: storeId } });
+    const all = (store?.credentials as any) ?? {};
+    const converty = all.converty ?? {};
 
-    const credentials = { clientId, clientSecret };
-
-    if (existing) {
-      return this.prisma.deliveryIntegration.update({
-        where: { id: existing.id },
-        data: { credentials, isActive: false },
-      });
-    }
-
-    return this.prisma.deliveryIntegration.create({
-      data: { storeId, provider: 'CONVERTY', credentials, isActive: false },
+    return this.prisma.store.update({
+      where: { id: storeId },
+      data: {
+        credentials: {
+          ...all,
+          converty: { ...converty, clientId, clientSecret },
+        },
+      },
     });
   }
 }
