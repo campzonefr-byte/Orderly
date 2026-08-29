@@ -9,7 +9,7 @@ export class StoresService {
     const stores = await this.prisma.store.findMany({
       include: {
         _count: { select: { orders: true } },
-        deliveryConfigs: true,
+       
       },
       orderBy: { createdAt: 'desc' },
     });
