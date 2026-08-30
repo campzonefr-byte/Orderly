@@ -73,7 +73,7 @@ model Store {
   sourceType      StoreSourceType
   isActive        Boolean         @default(true)
   credentials     Json?
-
+  bundles     Bundle[]
   orders          Order[]
   products        Product[]
   userAccess      UserStoreAccess[]
@@ -215,7 +215,8 @@ model Product {
   id                String   @id @default(cuid())
   storeId           String
   store             Store    @relation(fields: [storeId], references: [id])
-
+  bundle          Bundle?
+  bundleComponents BundleComponent[]
   sku               String
   name              String
   quantityAvailable Int      @default(0)
@@ -544,4 +545,32 @@ model SocialComment {
   @@index([accountId, status])
   @@index([postId])
   @@index([postedAt])
+}
+model Bundle {
+  id          String   @id @default(cuid())
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  productId   String   @unique
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name        String
+  sku         String?
+  isActive    Boolean  @default(true)
+
+  components  BundleComponent[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([storeId])
+}
+
+model BundleComponent {
+  id        String  @id @default(cuid())
+  bundleId  String
+  bundle    Bundle  @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int     @default(1)
+
+  @@unique([bundleId, productId])
 }

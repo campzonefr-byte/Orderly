@@ -14,6 +14,7 @@ import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { ProductsModule } from './modules/products/products.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { SocialModule } from './modules/social/social.module';
+import { BundlesModule } from './modules/bundles/bundles.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -30,6 +31,7 @@ import { SocialModule } from './modules/social/social.module';
     IntegrationsModule,
     ProductsModule,
     SocialModule,
+    BundlesModule,
   ],
 })
 export class AppModule {}
