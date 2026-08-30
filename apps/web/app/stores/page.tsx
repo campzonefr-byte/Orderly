@@ -395,6 +395,10 @@ function StoreCard({
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [shopifyConnected, setShopifyConnected] = useState(false);
   const [convertyConnected, setConvertyConnected] = useState(false);
+  const [showEditCreds, setShowEditCreds] = useState(false);
+  const [editClientId, setEditClientId] = useState("");
+  const [editSecret, setEditSecret] = useState("");
+  const [showEditSecret, setShowEditSecret] = useState(false);
 
   const isShopify = store.sourceType === "SHOPIFY";
   const isConverty = store.sourceType === "MARKETPLACE";
@@ -449,8 +453,46 @@ function StoreCard({
       setBusy("");
     }
   }
+  async function saveCredentials() {
+    if (!editClientId.trim() || !editSecret.trim()) return;
+    setBusy("save-creds");
+    try {
+      const endpoint = isShopify
+        ? `integrations/shopify/${store.id}/setup`
+        : `integrations/converty/${store.id}/credentials`;
 
+      const body = isShopify
+        ? { clientId: editClientId.trim(), clientSecret: editSecret.trim() }
+        : { clientId: editClientId.trim(), clientSecret: editSecret.trim() };
+
+      await fetch(`${API}/${endpoint}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      setMsg({ ok: true, text: "Credentials enregistrés. Cliquez Connecter." });
+      setShowEditCreds(false);
+      setEditClientId("");
+      setEditSecret("");
+      onRefresh();
+    } finally {
+      setBusy("");
+    }
+  }
   async function remove() {
+    if ((store.orderCount ?? 0) > 0) {
+      alert(
+        `Impossible de supprimer "${store.name}".\n\n` +
+        `Ce magasin contient ${store.orderCount} commandes. ` +
+        `La suppression entraînerait la perte de données et des doublons lors d'un nouvel import.\n\n` +
+        `Utilisez "Modifier les credentials" pour reconnecter le magasin.`
+      );
+      return;
+    }
     if (!window.confirm(`Supprimer le magasin ${store.name} ?`)) return;
     await fetch(`${API}/stores/${store.id}`, {
       method: "DELETE",
@@ -542,7 +584,56 @@ function StoreCard({
           </Button>
         </div>
       )}
+      {!isCustom && (
+        <button
+          onClick={() => setShowEditCreds((v) => !v)}
+          className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+        >
+          <Settings2 className="h-3.5 w-3.5" />
+          {showEditCreds ? "Masquer" : "Modifier les credentials"}
+        </button>
+      )}
 
+      {showEditCreds && (
+        <div className="rounded-lg border border-border bg-surface-sunken p-3 space-y-2">
+          <div>
+            <label className="mb-1 block text-[11px] font-medium text-muted">Client ID</label>
+            <Input
+              value={editClientId}
+              onChange={(e) => setEditClientId(e.target.value)}
+              placeholder="Nouveau Client ID"
+              className="h-8 text-xs"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-medium text-muted">Client Secret</label>
+            <div className="relative">
+              <Input
+                type={showEditSecret ? "text" : "password"}
+                value={editSecret}
+                onChange={(e) => setEditSecret(e.target.value)}
+                placeholder="Nouveau Client Secret"
+                className="h-8 pr-8 text-xs"
+              />
+              <button
+                type="button"
+                onClick={() => setShowEditSecret((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted"
+              >
+                {showEditSecret ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+              </button>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            className="w-full"
+            disabled={busy !== "" || !editClientId.trim() || !editSecret.trim()}
+            onClick={saveCredentials}
+          >
+            {busy === "save-creds" ? "Enregistrement..." : "Enregistrer"}
+          </Button>
+        </div>
+      )}
 {!isCustom && !isConnected && isConverty && (
         <Button
           size="sm"
