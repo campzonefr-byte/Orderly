@@ -2,11 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrderStatus, FinancialStatus, FulfillmentStatus, Prisma } from '@prisma/client';
 import { CosmosService } from '../delivery/cosmos.service';
+import { BundlesService } from '../bundles/bundles.service';
 @Injectable()
 export class OrdersService {
   constructor(
     private prisma: PrismaService,
     private cosmos: CosmosService,
+    private bundles: BundlesService,
   ) {}
 
   async findAll(query: {
@@ -574,8 +576,24 @@ export class OrdersService {
       },
     });
 
-    return order;
-  }
+      // Deduct bundle components when order is confirmed
+      if (status === 'A_PREPARER' || status === 'CONFIRME') {
+        const fullOrder = await this.prisma.order.findUnique({
+          where: { id: orderId },
+          include: { lineItems: true },
+        });
+        if (fullOrder) {
+          const lineItems = fullOrder.lineItems
+            .filter((li) => li.sku)
+            .map((li) => ({ sku: li.sku!, quantity: li.quantity }));
+          this.bundles.deductStock(fullOrder.storeId, lineItems).catch((e) =>
+            console.warn('[bundles] deductStock failed:', e?.message),
+          );
+        }
+      }
+  
+      return order;
+    }
 
   // Print flow: create Cosmos shipment then return the right label
   async prepareForPrint(orderId: string, actorId: string) {
