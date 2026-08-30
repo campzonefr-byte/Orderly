@@ -72,6 +72,7 @@ export class DeliveryController {
   }
 
   @Get('cosmos/:storeId/label')
+  @SetMetadata('isPublic', true)
   async serveLabel(
     @Param('storeId') storeId: string,
     @Query('barcode') barcode: string,

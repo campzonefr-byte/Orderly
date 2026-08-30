@@ -145,7 +145,7 @@ export class CosmosService {
 
     const payload = {
       name: order.customerName ?? 'Client',
-      phone: (order.customerPhone ?? '').replace(/\s/g, ''),
+      phone: (order.customerPhone ?? '').replace(/\s/g, '').replace(/^\+?216/, ''),
       phone2: (order.customerPhone2 ?? '').replace(/\s/g, '') || undefined,
       address: addr?.address1 || 'Adresse non precisee',
       city,
