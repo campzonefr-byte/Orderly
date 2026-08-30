@@ -42,6 +42,7 @@ const NAV_GROUPS = [
     label: "Catalogue",
     items: [
       { label: "Produits & Stock", icon: ShoppingBag, href: "/products", permission: "products" },
+      { label: "Bundles", icon: Package, href: "/bundles", permission: "products" },
     ],
   },
   {
