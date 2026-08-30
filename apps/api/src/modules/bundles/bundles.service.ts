@@ -103,14 +103,15 @@ export class BundlesService {
   }) {
     // Validate product exists and belongs to store
     const product = await this.prisma.product.findUnique({
-      where: { id: data.productId },
-    });
-    if (!product || product.storeId !== data.storeId) {
-      throw new Error('Produit introuvable');
-    }
-    if (product.bundle) {
-      throw new Error('Ce produit est déjà configuré comme bundle');
-    }
+        where: { id: data.productId },
+        include: { bundle: true },
+      });
+      if (!product || product.storeId !== data.storeId) {
+        throw new Error('Produit introuvable');
+      }
+      if (product.bundle) {
+        throw new Error('Ce produit est déjà configuré comme bundle');
+      }
 
     return this.prisma.bundle.create({
       data: {
