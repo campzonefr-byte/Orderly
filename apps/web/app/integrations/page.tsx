@@ -442,3 +442,53 @@ function IntegrationsContent() {
           <Button size="sm" onClick={() => setShowAdd(true)}>
             <Plus className="h-3.5 w-3.5" />
             Ajouter Cosmos
+          </Button>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-5">
+          {loading ? (
+            <p className="py-16 text-center text-sm text-muted">Chargement...</p>
+          ) : integrations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24">
+              <Truck className="h-8 w-8 text-muted-light" />
+              <p className="mt-2 text-sm font-medium">Aucune intégration livraison</p>
+              <p className="mt-1 text-xs text-muted">
+                Ajoutez votre compte Cosmos pour créer les colis automatiquement.
+              </p>
+              <Button size="sm" className="mt-4" onClick={() => setShowAdd(true)}>
+                <Plus className="h-3.5 w-3.5" />
+                Ajouter Cosmos
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              {integrations.map((i) => (
+                <IntegrationCard
+                  key={i.id}
+                  integration={i}
+                  allStores={accessibleStores}
+                  onRefresh={fetchIntegrations}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {showAdd && (
+        <AddIntegrationModal
+          onClose={() => setShowAdd(false)}
+          onCreated={fetchIntegrations}
+        />
+      )}
+    </div>
+  );
+}
+
+export default function IntegrationsPage() {
+  return (
+    <RouteGuard>
+      <IntegrationsContent />
+    </RouteGuard>
+  );
+}
