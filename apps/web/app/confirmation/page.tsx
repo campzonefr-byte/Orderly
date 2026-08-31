@@ -702,7 +702,6 @@ function OrderModal({
 
   const isLocked = editability && editability.editable === false;
   const willRecreate = editability?.willRecreateParcel === true;
-  const total = lineItems.reduce((s, li) => s + li.price * li.quantity, 0);
 
   function updateLineItem(idx: number, field: string, value: any) {
     setLineItems((prev) => prev.map((li, i) => i === idx ? { ...li, [field]: value } : li));
