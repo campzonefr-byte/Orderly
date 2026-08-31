@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   X, Package, TrendingDown, History, Plus, Minus,
-  AlertTriangle, Settings, Calendar, RotateCcw,
+  AlertTriangle, Settings, Calendar, RotateCcw, Tag,
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
