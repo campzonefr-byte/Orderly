@@ -79,13 +79,29 @@ model Store {
   userAccess      UserStoreAccess[]
   deliveryIntegrations DeliveryIntegrationStore[]
   socialAccounts  SocialAccount[]
-
+  shippingRules   ShippingRule[]
+ 
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
   @@index([sourceType])
 }
+model ShippingRule {
+  id            String   @id @default(cuid())
+  storeId       String
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
+  name          String   @default("Livraison standard")
+  basePrice     Decimal  @default(7) @db.Decimal(10, 3)
+  freeThreshold Decimal? @db.Decimal(10, 3)
+  cityOverrides Json?
+  isActive      Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([storeId])
+}
 model Order {
   id                String            @id @default(cuid())
   storeId           String
