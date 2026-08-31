@@ -345,69 +345,7 @@ function CreateOrderModal({
               ))}
             </div>
           </div>
-          <div className="rounded-lg border border-border p-3 space-y-2">
-            <p className="text-[11px] font-medium text-muted">Remise (optionnel)</p>
-            <div className="flex gap-2">
-              <div className="flex rounded-md border border-border overflow-hidden">
-                {[
-                  { key: "", label: "Aucune" },
-                  { key: "PERCENT", label: "%" },
-                  { key: "FIXED", label: "TND" },
-                ].map((t) => (
-                  <button
-                    key={t.key}
-                    type="button"
-                    onClick={() => { setDiscountType(t.key as any); setDiscountValue(""); }}
-                    className={cn(
-                      "px-3 py-1.5 text-xs font-medium transition-colors",
-                      discountType === t.key
-                        ? "bg-primary text-white"
-                        : "bg-surface text-muted hover:bg-surface-sunken"
-                    )}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-              {discountType && (
-                <Input
-                  type="number"
-                  value={discountValue}
-                  onChange={(e) => setDiscountValue(e.target.value)}
-                  placeholder={discountType === "PERCENT" ? "ex: 10" : "ex: 5.000"}
-                  min={0}
-                  max={discountType === "PERCENT" ? 100 : undefined}
-                  step="0.001"
-                  className="h-8 flex-1 text-xs"
-                />
-              )}
-            </div>
-            {discountType && discountValue && (
-              <Input
-                value={discountNote}
-                onChange={(e) => setDiscountNote(e.target.value)}
-                placeholder="Raison de la remise..."
-                className="h-7 text-xs"
-              />
-            )}
-          </div>
-
-          {discountAmount > 0 && (
-            <div className="space-y-1 px-1">
-              <div className="flex justify-between">
-                <span className="text-xs text-muted">Sous-total</span>
-                <span className="font-mono text-xs text-muted">{subtotalCalc.toFixed(3)} TND</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-xs text-status-cancelled">
-                  Remise {discountType === "PERCENT" ? `${discountValue}%` : ""}
-                </span>
-                <span className="font-mono text-xs text-status-cancelled">
-                  -{discountAmount.toFixed(3)} TND
-                </span>
-              </div>
-            </div>
-          )}
+        
           <div className={cn(
             "flex justify-between items-center rounded-lg px-3 py-2",
             isExchange ? "bg-purple-50" : "bg-surface-sunken"
