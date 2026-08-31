@@ -132,14 +132,6 @@ function CreateOrderModal({
 
   const { products: storeProducts, loading: loadingProducts } = useStoreProducts(storeId);
 
-  const subtotalCalc = lineItems.reduce((s, p) => s + p.price * p.quantity, 0);
-  const discountAmount =
-    discountType === "PERCENT"
-      ? (subtotalCalc * parseFloat(discountValue || "0")) / 100
-      : discountType === "FIXED"
-      ? parseFloat(discountValue || "0")
-      : 0;
-  const total = isExchange ? 0 : Math.max(0, subtotalCalc - discountAmount);
 
   function updateProduct(idx: number, patch: Partial<typeof products[0]>) {
     setProducts((prev) => prev.map((p, i) => i === idx ? { ...p, ...patch } : p));
@@ -668,6 +660,15 @@ function OrderModal({
       price: Number(li.price),
     }))
   );
+  const subtotalCalc = lineItems.reduce((s, p) => s + p.price * p.quantity, 0);
+  const discountAmount =
+    discountType === "PERCENT"
+      ? (subtotalCalc * parseFloat(discountValue || "0")) / 100
+      : discountType === "FIXED"
+      ? parseFloat(discountValue || "0")
+      : 0;
+  const total = isExchange ? 0 : Math.max(0, subtotalCalc - discountAmount);
+ 
 
   const [callPhone, setCallPhone] = useState(order.customerPhone ?? "");
   const [result, setResult] = useState<"ANSWERED_CONFIRMED" | "ANSWERED_REFUSED" | "NO_ANSWER" | "BUSY" | "WRONG_NUMBER" | "">("");
