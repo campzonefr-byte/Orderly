@@ -304,4 +304,95 @@ export class ProductsService {
   async listAll(storeIds?: string[]) {
     return this.listWithStats(storeIds, false);
   }
+  async listOffers(productId: string) {
+    return this.prisma.quantityOffer.findMany({
+      where: { productId },
+      orderBy: { quantity: 'asc' },
+    });
+  }
+
+  async createOffer(data: {
+    productId: string;
+    quantity: number;
+    priceType: 'FIXED' | 'PERCENT';
+    price?: number;
+    percent?: number;
+    label?: string;
+  }) {
+    return this.prisma.quantityOffer.upsert({
+      where: {
+        productId_quantity: {
+          productId: data.productId,
+          quantity: data.quantity,
+        },
+      },
+      create: {
+        productId: data.productId,
+        quantity: data.quantity,
+        priceType: data.priceType,
+        price: data.price ?? null,
+        percent: data.percent ?? null,
+        label: data.label ?? null,
+      },
+      update: {
+        priceType: data.priceType,
+        price: data.price ?? null,
+        percent: data.percent ?? null,
+        label: data.label ?? null,
+      },
+    });
+  }
+
+  async removeOffer(id: string) {
+    return this.prisma.quantityOffer.delete({ where: { id } });
+  }
+
+  // Compute the effective price for a given SKU and quantity
+  async computePrice(storeId: string, sku: string, quantity: number) {
+    const product = await this.prisma.product.findUnique({
+      where: { storeId_sku: { storeId, sku } },
+      include: { quantityOffers: { orderBy: { quantity: 'desc' } } },
+    });
+
+    if (!product) return { unitPrice: 0, total: 0, offerApplied: null };
+
+    const basePrice = Number(product.sellPrice ?? 0);
+
+    // Find the best matching offer (highest quantity <= requested)
+    const offer = product.quantityOffers.find((o) => o.quantity <= quantity);
+
+    if (!offer) {
+      return {
+        unitPrice: basePrice,
+        total: basePrice * quantity,
+        offerApplied: null,
+      };
+    }
+
+    // How many full offer packs fit, plus remainder at base price
+    const packs = Math.floor(quantity / offer.quantity);
+    const remainder = quantity % offer.quantity;
+
+    let packPrice: number;
+    if (offer.priceType === 'PERCENT') {
+      const discount = Number(offer.percent ?? 0) / 100;
+      packPrice = basePrice * offer.quantity * (1 - discount);
+    } else {
+      packPrice = Number(offer.price ?? 0);
+    }
+
+    const total = packs * packPrice + remainder * basePrice;
+
+    return {
+      unitPrice: quantity > 0 ? total / quantity : basePrice,
+      total,
+      offerApplied: {
+        quantity: offer.quantity,
+        priceType: offer.priceType,
+        price: offer.price ? Number(offer.price) : null,
+        percent: offer.percent ? Number(offer.percent) : null,
+        label: offer.label,
+      },
+    };
+  }
 }

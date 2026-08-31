@@ -64,7 +64,21 @@ enum UserRole {
   STORE_MANAGER
   STAFF
 }
+model QuantityOffer {
+  id         String   @id @default(cuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity   Int
+  priceType  String   @default("FIXED")  // FIXED, PERCENT
+  price      Decimal? @db.Decimal(10, 3)
+  percent    Decimal? @db.Decimal(5, 2)
+  label      String?
 
+  createdAt  DateTime @default(now())
+
+  @@unique([productId, quantity])
+  @@index([productId])
+}
 // ----------- CORE -----------
 
 model Store {
@@ -252,6 +266,7 @@ model Product {
   lineItems         OrderLineItem[]
   stockAlerts       StockAlert[]
   inventoryLogs     InventoryLog[]
+  quantityOffers    QuantityOffer[]
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
