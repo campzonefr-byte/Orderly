@@ -628,18 +628,40 @@ function OrderModal({
   const isLocked = editability && editability.editable === false;
   const willRecreate = editability?.willRecreateParcel === true;
    // Original total from the source (Shopify/Converty) — never recalculated
-   const originalTotal = Number(order.total) || 0;
-   const originalItemsTotal = order.lineItems.reduce(
-     (s, li) => s + (Number(li.price) || 0) * (Number(li.quantity) || 0),
-     0
-   );
-   const extraCharges = originalTotal - originalItemsTotal;
- 
-   const currentItemsTotal = lineItems.reduce(
-     (s, li) => s + (Number(li.price) || 0) * (Number(li.quantity) || 0),
-     0
-   );
-   const subtotalCalc = Math.max(0, currentItemsTotal + extraCharges);
+   const [shippingCost, setShippingCost] = useState(Number(order.shippingTotal) || 0);
+  const [shippingFree, setShippingFree] = useState(false);
+  const [shippingReason, setShippingReason] = useState("");
+
+  const productsTotal = lineItems.reduce(
+    (s, li) => s + (Number(li.price) || 0) * (Number(li.quantity) || 0),
+    0
+  );
+
+  // Recalculate shipping when products or city change
+  useEffect(() => {
+    if (productsTotal <= 0) {
+      setShippingCost(0);
+      setShippingFree(false);
+      setShippingReason("Commande vide");
+      return;
+    }
+    (async () => {
+      try {
+        const res = await fetch(
+          `${API}/shipping/calculate/${order.storeId}?subtotal=${productsTotal}&city=${encodeURIComponent(city)}`,
+          { headers: { Authorization: `Bearer ${getToken()}` } }
+        );
+        const data = await res.json();
+        setShippingCost(data.cost ?? 0);
+        setShippingFree(data.isFree ?? false);
+        setShippingReason(data.reason ?? "");
+      } catch {
+        setShippingCost(Number(order.shippingTotal) || 0);
+      }
+    })();
+  }, [productsTotal, city, order.storeId]);
+
+  const subtotalCalc = productsTotal + shippingCost;
  
    const discountAmount =
      discountType === "PERCENT"
@@ -1011,8 +1033,82 @@ function OrderModal({
                   </div>
                 </div>
 
+                <div className="rounded-lg border border-border p-3 space-y-2">
+                  <p className="text-[11px] font-medium text-muted">Remise (optionnel)</p>
+                  <div className="flex gap-2">
+                    <div className="flex rounded-md border border-border overflow-hidden">
+                      {[
+                        { key: "", label: "Aucune" },
+                        { key: "PERCENT", label: "%" },
+                        { key: "FIXED", label: "TND" },
+                      ].map((t) => (
+                        <button
+                          key={t.key}
+                          type="button"
+                          onClick={() => { setDiscountType(t.key as any); setDiscountValue(""); }}
+                          className={cn(
+                            "px-3 py-1.5 text-xs font-medium transition-colors",
+                            discountType === t.key
+                              ? "bg-primary text-white"
+                              : "bg-surface text-muted hover:bg-surface-sunken"
+                          )}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                    {discountType && (
+                      <Input
+                        type="number"
+                        value={discountValue}
+                        onChange={(e) => setDiscountValue(e.target.value)}
+                        placeholder={discountType === "PERCENT" ? "ex: 10" : "ex: 5.000"}
+                        min={0}
+                        step="0.001"
+                        className="h-8 flex-1 text-xs"
+                      />
+                    )}
+                  </div>
+                  {discountType && discountValue && (
+                    <Input
+                      value={discountNote}
+                      onChange={(e) => setDiscountNote(e.target.value)}
+                      placeholder="Raison de la remise..."
+                      className="h-7 text-xs"
+                    />
+                  )}
+                </div>
+
+                <div className="space-y-1 px-1">
+                  <div className="flex justify-between">
+                    <span className="text-xs text-muted">Produits</span>
+                    <span className="font-mono text-xs">{productsTotal.toFixed(3)} TND</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-xs text-muted">
+                      Livraison
+                      {shippingFree && (
+                        <span className="ml-1 rounded bg-status-delivered-bg px-1.5 py-0.5 text-[10px] font-medium text-status-delivered">
+                          gratuite
+                        </span>
+                      )}
+                    </span>
+                    <span className="font-mono text-xs">{shippingCost.toFixed(3)} TND</span>
+                  </div>
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-xs text-status-cancelled">
+                        Remise {discountType === "PERCENT" ? `${discountValue}%` : ""}
+                      </span>
+                      <span className="font-mono text-xs text-status-cancelled">
+                        -{discountAmount.toFixed(3)} TND
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex justify-between items-center rounded-lg bg-surface-sunken px-3 py-2">
-                  <span className="text-xs font-medium text-muted">Total calculé</span>
+                  <span className="text-xs font-medium text-muted">Total</span>
                   <span className="font-mono text-sm font-bold">{formatMoney(total, order.currency)}</span>
                 </div>
 
