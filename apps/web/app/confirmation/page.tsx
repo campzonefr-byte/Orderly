@@ -661,7 +661,13 @@ function OrderModal({
    function updateLineItem(idx: number, field: string, value: any) {
     setLineItems((prev) => prev.map((li, i) => i === idx ? { ...li, [field]: value } : li));
   }
+  function removeLineItem(idx: number) {
+    setLineItems((prev) => prev.filter((_, i) => i !== idx));
+  }
 
+  function addLineItem() {
+    setLineItems((prev) => [...prev, { id: "", title: "", sku: "", variantTitle: "", quantity: 1, price: 0 }]);
+  }
   
 
   async function saveOrder() {
