@@ -604,9 +604,7 @@ function OrderModal({
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [editability, setEditability] = useState<any>(null);
   const [cityError, setCityError] = useState(false);
-  const [discountType, setDiscountType] = useState<"PERCENT" | "FIXED" | "">(
-    (order as any).discountType ?? ""
-  );
+ 
   const [discountValue, setDiscountValue] = useState(
     (order as any).discountValue ? String((order as any).discountValue) : ""
   );
@@ -628,13 +626,7 @@ function OrderModal({
   const isLocked = editability && editability.editable === false;
   const willRecreate = editability?.willRecreateParcel === true;
  
-  const [discountType, setDiscountType] = useState<"PERCENT" | "FIXED" | "">(
-    (order as any).discountType ?? ""
-  );
-  const [discountValue, setDiscountValue] = useState(
-    (order as any).discountValue ? String((order as any).discountValue) : ""
-  );
-  const [discountNote, setDiscountNote] = useState((order as any).discountNote ?? "");
+ 
 
   const subtotalCalc = lineItems.reduce((s, p) => s + p.price * p.quantity, 0);
   const discountAmount =
