@@ -72,6 +72,8 @@ model Upsell {
   triggerProductId String
   triggerProduct   Product  @relation("UpsellTrigger", fields: [triggerProductId], references: [id], onDelete: Cascade)
   isActive         Boolean  @default(true)
+  startsAt         DateTime?
+  endsAt           DateTime?
 
   items            UpsellItem[]
 
