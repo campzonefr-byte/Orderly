@@ -23,7 +23,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Search, ChevronLeft, ChevronRight, ChevronDown, Upload, CheckCircle2, XCircle, X } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, ChevronDown, Upload, CheckCircle2, XCircle, X ,Lock,} from "lucide-react";
 import { Order, OrderStatus, ORDER_STATUS_LABELS } from "@/types/order";
 import * as XLSX from "xlsx";
 
@@ -284,6 +284,36 @@ function StatusDropdown({
 }) {
   const [open, setOpen] = useState(false);
 
+  // Statuses controlled by the carrier — read-only
+  const COURIER_CONTROLLED: OrderStatus[] = [
+    "AU_DEPOT_LIVREUR",
+    "EN_COURS_DE_LIVRAISON",
+    "LIVRE",
+    "PAYE",
+    "RETOUR",
+    "RETOUR_DEPOT",
+    "A_VERIFIER",
+  ];
+
+  const isLocked =
+    order.deliveryCompany === "Cosmos" &&
+    COURIER_CONTROLLED.includes(order.orderStatus);
+
+  if (isLocked) {
+    return (
+      <span
+        className={cn(
+          "flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs font-medium",
+          STATUS_COLORS[order.orderStatus] ?? "bg-surface-sunken text-muted"
+        )}
+        title="Statut géré automatiquement par le transporteur"
+      >
+        {ORDER_STATUS_LABELS[order.orderStatus] ?? order.orderStatus}
+        <Lock className="h-3 w-3 opacity-60" />
+      </span>
+    );
+  }
+
   return (
     <div className="relative">
       <button
@@ -298,28 +328,33 @@ function StatusDropdown({
       </button>
 
       {open && (
-        <div
-          onClick={(e) => e.stopPropagation()}
-          className="absolute left-0 top-[calc(100%+4px)] z-30 w-52 rounded-md border border-border bg-surface py-1 shadow-lg"
-        >
-          {DELIVERY_STATUSES.map((s) => (
-            <button
-              key={s.status}
-              disabled={s.status === order.orderStatus}
-              onClick={() => {
-                onChangeStatus(order.id, s.status);
-                setOpen(false);
-              }}
-              className={cn(
-                "flex w-full items-center px-3 py-1.5 text-left text-xs hover:bg-surface-sunken",
-                s.status === order.orderStatus ? "cursor-default text-muted-light" : s.color
-              )}
-            >
-              {s.label}
-              {s.status === order.orderStatus && <span className="ml-auto text-[10px]">actuel</span>}
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="fixed inset-0 z-20" onClick={(e) => { e.stopPropagation(); setOpen(false); }} />
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="absolute left-0 top-[calc(100%+4px)] z-30 w-52 rounded-md border border-border bg-surface py-1 shadow-lg"
+          >
+            {DELIVERY_STATUSES.map((s) => (
+              <button
+                key={s.status}
+                disabled={s.status === order.orderStatus}
+                onClick={() => {
+                  onChangeStatus(order.id, s.status);
+                  setOpen(false);
+                }}
+                className={cn(
+                  "flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors",
+                  s.status === order.orderStatus
+                    ? "cursor-default opacity-40"
+                    : "hover:bg-surface-sunken"
+                )}
+              >
+                <span className={cn("h-2 w-2 rounded-full", s.color)} />
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

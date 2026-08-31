@@ -64,6 +64,34 @@ enum UserRole {
   STORE_MANAGER
   STAFF
 }
+model Upsell {
+  id               String   @id @default(cuid())
+  storeId          String
+  store            Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name             String
+  triggerProductId String
+  triggerProduct   Product  @relation("UpsellTrigger", fields: [triggerProductId], references: [id], onDelete: Cascade)
+  isActive         Boolean  @default(true)
+
+  items            UpsellItem[]
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([storeId])
+  @@index([triggerProductId])
+}
+
+model UpsellItem {
+  id        String  @id @default(cuid())
+  upsellId  String
+  upsell    Upsell  @relation(fields: [upsellId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation("UpsellItem", fields: [productId], references: [id], onDelete: Cascade)
+  price     Decimal @db.Decimal(10, 3)
+
+  @@unique([upsellId, productId])
+}
 model QuantityOffer {
   id         String   @id @default(cuid())
   productId  String
@@ -88,6 +116,7 @@ model Store {
   isActive        Boolean         @default(true)
   credentials     Json?
   bundles     Bundle[]
+  upsells         Upsell[]
   orders          Order[]
   products        Product[]
   userAccess      UserStoreAccess[]
@@ -250,6 +279,8 @@ model Product {
   store             Store    @relation(fields: [storeId], references: [id])
   bundle          Bundle?
   bundleComponents BundleComponent[]
+  upsellTriggers  Upsell[]     @relation("UpsellTrigger")
+  upsellItems     UpsellItem[] @relation("UpsellItem")
   sku               String
   name              String
   quantityAvailable Int      @default(0)
