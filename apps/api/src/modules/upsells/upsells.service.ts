@@ -33,12 +33,16 @@ export class UpsellsService {
     name: string;
     triggerProductId: string;
     items: { productId: string; price: number }[];
+    startsAt?: string | null;
+    endsAt?: string | null;
   }) {
     return this.prisma.upsell.create({
       data: {
         storeId: data.storeId,
         name: data.name,
         triggerProductId: data.triggerProductId,
+        startsAt: data.startsAt ? new Date(data.startsAt) : null,
+        endsAt: data.endsAt ? new Date(data.endsAt) : null,
         items: {
           create: data.items.map((i) => ({
             productId: i.productId,
@@ -59,6 +63,8 @@ export class UpsellsService {
       name?: string;
       isActive?: boolean;
       items?: { productId: string; price: number }[];
+      startsAt?: string | null;
+      endsAt?: string | null;
     },
   ) {
     return this.prisma.upsell.update({
@@ -66,6 +72,12 @@ export class UpsellsService {
       data: {
         ...(data.name !== undefined && { name: data.name }),
         ...(data.isActive !== undefined && { isActive: data.isActive }),
+        ...(data.startsAt !== undefined && {
+          startsAt: data.startsAt ? new Date(data.startsAt) : null,
+        }),
+        ...(data.endsAt !== undefined && {
+          endsAt: data.endsAt ? new Date(data.endsAt) : null,
+        }),
         ...(data.items && {
           items: {
             deleteMany: {},
@@ -88,41 +100,36 @@ export class UpsellsService {
   }
 
   // Given the SKUs in a cart, return special prices that apply
-  async computeUpsells(storeId: string, skus: string[]) {
+  async computeUpsells(storeId: string, skus: string[], orderDate?: Date) {
     if (skus.length === 0) return { prices: {} };
+
+    const refDate = orderDate ?? new Date();
 
     const products = await this.prisma.product.findMany({
       where: { storeId, sku: { in: skus } },
       select: { id: true, sku: true },
     });
-    const idBySku = Object.fromEntries(products.map((p) => [p.sku, p.id]));
     const productIds = products.map((p) => p.id);
 
-    // Find active upsells whose trigger product is in the cart
     const upsells = await this.prisma.upsell.findMany({
-      where: {
-        storeId,
-        isActive: true,
-        triggerProductId: { in: productIds },
-      },
-      include: {
-        items: {
-          include: { product: { select: { sku: true } } },
-        },
-      },
+      where: { storeId, triggerProductId: { in: productIds } },
+      include: { items: { include: { product: { select: { sku: true } } } } },
+    });
+
+    const validUpsells = upsells.filter((u) => {
+      if (!u.isActive) return false;
+      if (u.startsAt && refDate < u.startsAt) return false;
+      if (u.endsAt && refDate > u.endsAt) return false;
+      return true;
     });
 
     const prices: Record<string, { price: number; upsellName: string }> = {};
 
-    for (const u of upsells) {
+    for (const u of validUpsells) {
       for (const item of u.items) {
         const sku = item.product.sku;
-        // Only apply if that product is also in the cart
         if (skus.includes(sku)) {
-          prices[sku] = {
-            price: Number(item.price),
-            upsellName: u.name,
-          };
+          prices[sku] = { price: Number(item.price), upsellName: u.name };
         }
       }
     }

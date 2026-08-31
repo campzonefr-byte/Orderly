@@ -18,11 +18,14 @@ import {
     @Post('compute/:storeId')
     compute(
       @Param('storeId') storeId: string,
-      @Body() body: { skus: string[] },
+      @Body() body: { skus: string[]; orderDate?: string },
     ) {
-      return this.upsells.computeUpsells(storeId, body.skus ?? []);
+      return this.upsells.computeUpsells(
+        storeId,
+        body.skus ?? [],
+        body.orderDate ? new Date(body.orderDate) : undefined,
+      );
     }
-  
     @Post()
     create(@Body() body: any) {
       return this.upsells.create(body);

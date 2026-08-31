@@ -101,7 +101,9 @@ model QuantityOffer {
   price      Decimal? @db.Decimal(10, 3)
   percent    Decimal? @db.Decimal(5, 2)
   label      String?
-
+  isActive   Boolean   @default(true)
+  startsAt   DateTime?
+  endsAt     DateTime?
   createdAt  DateTime @default(now())
 
   @@unique([productId, quantity])
@@ -123,7 +125,8 @@ model Store {
   deliveryIntegrations DeliveryIntegrationStore[]
   socialAccounts  SocialAccount[]
   shippingRules   ShippingRule[]
- 
+  startsAt   DateTime?
+  endsAt     DateTime?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 

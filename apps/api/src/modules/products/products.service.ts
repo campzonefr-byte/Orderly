@@ -348,7 +348,12 @@ export class ProductsService {
   }
 
   // Compute the effective price for a given SKU and quantity
-  async computePrice(storeId: string, sku: string, quantity: number) {
+  async computePrice(
+    storeId: string,
+    sku: string,
+    quantity: number,
+    orderDate?: Date,
+  ) {
     const product = await this.prisma.product.findUnique({
       where: { storeId_sku: { storeId, sku } },
       include: { quantityOffers: { orderBy: { quantity: 'desc' } } },
@@ -357,9 +362,16 @@ export class ProductsService {
     if (!product) return { unitPrice: 0, total: 0, offerApplied: null };
 
     const basePrice = Number(product.sellPrice ?? 0);
+    const refDate = orderDate ?? new Date();
 
-    // Find the best matching offer (highest quantity <= requested)
-    const offer = product.quantityOffers.find((o) => o.quantity <= quantity);
+    const validOffers = product.quantityOffers.filter((o) => {
+      if (!o.isActive) return false;
+      if (o.startsAt && refDate < o.startsAt) return false;
+      if (o.endsAt && refDate > o.endsAt) return false;
+      return true;
+    });
+
+    const offer = validOffers.find((o) => o.quantity <= quantity);
 
     if (!offer) {
       return {
@@ -369,7 +381,6 @@ export class ProductsService {
       };
     }
 
-    // How many full offer packs fit, plus remainder at base price
     const packs = Math.floor(quantity / offer.quantity);
     const remainder = quantity % offer.quantity;
 
@@ -391,7 +402,6 @@ export class ProductsService {
         priceType: offer.priceType,
         price: offer.price ? Number(offer.price) : null,
         percent: offer.percent ? Number(offer.percent) : null,
-        label: offer.label,
       },
     };
   }
