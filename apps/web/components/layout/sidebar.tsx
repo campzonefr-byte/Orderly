@@ -11,7 +11,7 @@ import {
   LayoutGrid, Phone, Package, Truck, RotateCcw, QrCode, Archive,
   Users, MessageSquare, AlertCircle, ShoppingBag, TrendingUp,
   Megaphone, StoreIcon, Plug, Settings, LogOut, ChevronDown,
-  Check, Circle,
+  Check, Circle,Tag,
 } from "lucide-react";
 
 const NAV_GROUPS = [
@@ -43,6 +43,7 @@ const NAV_GROUPS = [
     items: [
       { label: "Produits & Stock", icon: ShoppingBag, href: "/products", permission: "products" },
       { label: "Bundles", icon: Package, href: "/bundles", permission: "products" },
+      { label: "Offres quantité", icon: Tag, href: "/offers", permission: "products" },
     ],
   },
   {
