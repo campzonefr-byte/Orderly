@@ -59,6 +59,7 @@ const NAV_GROUPS = [
     label: "Configuration",
     items: [
       { label: "Magasins", icon: StoreIcon, href: "/stores", permission: "stores" },
+      { label: "Livraison", icon: Truck, href: "/shipping", permission: "integrations" },
       { label: "Intégrations", icon: Plug, href: "/integrations", permission: "integrations" },
       { label: "Utilisateurs", icon: Users, href: "/users", permission: "users" },
       { label: "Paramètres", icon: Settings, href: "/settings", permission: "settings" },
