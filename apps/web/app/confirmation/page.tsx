@@ -628,12 +628,19 @@ function OrderModal({
   const isLocked = editability && editability.editable === false;
   const willRecreate = editability?.willRecreateParcel === true;
    // Original total from the source (Shopify/Converty) — never recalculated
-   const [itemsModified, setItemsModified] = useState(false);
    const originalTotal = Number(order.total);
+   const [addedItems, setAddedItems] = useState<number[]>([]);
  
-   const subtotalCalc = itemsModified
-     ? lineItems.reduce((s, p) => s + p.price * p.quantity, 0)
-     : originalTotal;
+   // Original total + only newly added items
+   const addedTotal = lineItems
+     .filter((_, idx) => addedItems.includes(idx))
+     .reduce((s, p) => s + p.price * p.quantity, 0);
+ 
+   const removedTotal = order.lineItems
+     .filter((orig) => !lineItems.some((li) => li.id === orig.id))
+     .reduce((s, li) => s + Number(li.price) * li.quantity, 0);
+ 
+   const subtotalCalc = Math.max(0, originalTotal + addedTotal - removedTotal);
  
    const discountAmount =
      discountType === "PERCENT"
@@ -645,18 +652,19 @@ function OrderModal({
    const total = Math.max(0, subtotalCalc - discountAmount);
 
    function updateLineItem(idx: number, field: string, value: any) {
-    setItemsModified(true);
     setLineItems((prev) => prev.map((li, i) => i === idx ? { ...li, [field]: value } : li));
   }
 
   function removeLineItem(idx: number) {
-    setItemsModified(true);
     setLineItems((prev) => prev.filter((_, i) => i !== idx));
+    setAddedItems((prev) => prev.filter((i) => i !== idx).map((i) => (i > idx ? i - 1 : i)));
   }
 
   function addLineItem() {
-    setItemsModified(true);
-    setLineItems((prev) => [...prev, { id: "", title: "", sku: "", variantTitle: "", quantity: 1, price: 0 }]);
+    setLineItems((prev) => {
+      setAddedItems((a) => [...a, prev.length]);
+      return [...prev, { id: "", title: "", sku: "", variantTitle: "", quantity: 1, price: 0 }];
+    });
   }
 
   async function saveOrder() {
@@ -955,7 +963,7 @@ function OrderModal({
                                           ...x,
                                           title: prod.name,
                                           sku: prod.sku,
-                                          price: (prod as any).sellPrice ?? x.price,
+                                          price: (prod as any).price ?? (prod as any).sellPrice ?? 0,
                                         }
                                       : x
                                   )
