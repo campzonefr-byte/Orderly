@@ -628,15 +628,17 @@ function OrderModal({
   const isLocked = editability && editability.editable === false;
   const willRecreate = editability?.willRecreateParcel === true;
    // Original total from the source (Shopify/Converty) — never recalculated
-   const originalTotal = Number(order.total);
+   const originalTotal = Number(order.total) || 0;
   const originalItemsTotal = order.lineItems.reduce(
-    (s, li) => s + Number(li.price) * li.quantity,
+    (s, li) => s + (Number(li.price) || 0) * (Number(li.quantity) || 0),
     0
   );
-  // Everything in the order total that isn't line items (delivery, fees, pack pricing)
   const extraCharges = originalTotal - originalItemsTotal;
 
-  const currentItemsTotal = lineItems.reduce((s, li) => s + li.price * li.quantity, 0);
+  const currentItemsTotal = lineItems.reduce(
+    (s, li) => s + (Number(li.price) || 0) * (Number(li.quantity) || 0),
+    0
+  );
   const subtotalCalc = Math.max(0, currentItemsTotal + extraCharges);
  
    const discountAmount =
