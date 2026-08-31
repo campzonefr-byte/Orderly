@@ -629,25 +629,15 @@ function OrderModal({
   const willRecreate = editability?.willRecreateParcel === true;
    // Original total from the source (Shopify/Converty) — never recalculated
    const originalTotal = Number(order.total);
+  const originalItemsTotal = order.lineItems.reduce(
+    (s, li) => s + Number(li.price) * li.quantity,
+    0
+  );
+  // Everything in the order total that isn't line items (delivery, fees, pack pricing)
+  const extraCharges = originalTotal - originalItemsTotal;
 
-   // Delta = what changed vs the original order
-   const delta = lineItems.reduce((sum, li) => {
-     const original = order.lineItems.find((o) => o.id === li.id);
-     if (!original) {
-       // New product added
-       return sum + li.price * li.quantity;
-     }
-     // Existing product: only the quantity difference counts
-     const qtyDiff = li.quantity - original.quantity;
-     return sum + Number(original.price) * qtyDiff;
-   }, 0);
- 
-   // Removed products
-   const removed = order.lineItems
-     .filter((o) => !lineItems.some((li) => li.id === o.id))
-     .reduce((s, o) => s + Number(o.price) * o.quantity, 0);
- 
-   const subtotalCalc = Math.max(0, originalTotal + delta - removed);
+  const currentItemsTotal = lineItems.reduce((s, li) => s + li.price * li.quantity, 0);
+  const subtotalCalc = Math.max(0, currentItemsTotal + extraCharges);
  
    const discountAmount =
      discountType === "PERCENT"
