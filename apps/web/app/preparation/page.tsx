@@ -570,12 +570,10 @@ function OrderDetailModal({
                       )}
                     </p>
                     <p className="font-mono text-[11px] text-muted">
-                    {li.sku || "sans SKU"} · Qté {li.quantity} · unitaire
+                    {li.sku || "sans SKU"} · Qté {li.quantity} · {formatMoney(Number(li.price), order.currency)} / unité
                     </p>
                   </div>
-                  <p className="shrink-0 font-mono text-sm font-medium">
-                  {formatMoney(Number(li.price), order.currency)}
-                  </p>
+                  
                 </div>
               ))}
             </div>
