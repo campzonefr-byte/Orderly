@@ -574,7 +574,7 @@ function OrderDetailModal({
                     </p>
                   </div>
                   <p className="shrink-0 font-mono text-sm font-medium">
-                    {formatMoney(Number(li.price) * li.quantity, order.currency)}
+                  {formatMoney(Number(li.price), order.currency)}
                   </p>
                 </div>
               ))}
