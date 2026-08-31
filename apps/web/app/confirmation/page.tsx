@@ -627,24 +627,35 @@ function OrderModal({
 
   const isLocked = editability && editability.editable === false;
   const willRecreate = editability?.willRecreateParcel === true;
-  const subtotalCalc = lineItems.reduce((s, p) => s + p.price * p.quantity, 0);
-  const discountAmount =
-    discountType === "PERCENT"
-      ? (subtotalCalc * parseFloat(discountValue || "0")) / 100
-      : discountType === "FIXED"
-      ? parseFloat(discountValue || "0")
-      : 0;
-      const total = Math.max(0, subtotalCalc - discountAmount);
+   // Original total from the source (Shopify/Converty) — never recalculated
+   const [itemsModified, setItemsModified] = useState(false);
+   const originalTotal = Number(order.total);
+ 
+   const subtotalCalc = itemsModified
+     ? lineItems.reduce((s, p) => s + p.price * p.quantity, 0)
+     : originalTotal;
+ 
+   const discountAmount =
+     discountType === "PERCENT"
+       ? (subtotalCalc * parseFloat(discountValue || "0")) / 100
+       : discountType === "FIXED"
+       ? parseFloat(discountValue || "0")
+       : 0;
+ 
+   const total = Math.max(0, subtotalCalc - discountAmount);
 
-  function updateLineItem(idx: number, field: string, value: any) {
+   function updateLineItem(idx: number, field: string, value: any) {
+    setItemsModified(true);
     setLineItems((prev) => prev.map((li, i) => i === idx ? { ...li, [field]: value } : li));
   }
 
   function removeLineItem(idx: number) {
+    setItemsModified(true);
     setLineItems((prev) => prev.filter((_, i) => i !== idx));
   }
 
   function addLineItem() {
+    setItemsModified(true);
     setLineItems((prev) => [...prev, { id: "", title: "", sku: "", variantTitle: "", quantity: 1, price: 0 }]);
   }
 
