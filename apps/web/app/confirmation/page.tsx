@@ -634,7 +634,7 @@ function OrderModal({
       : discountType === "FIXED"
       ? parseFloat(discountValue || "0")
       : 0;
-  const total = isExchange ? 0 : Math.max(0, subtotalCalc - discountAmount);
+      const total = Math.max(0, subtotalCalc - discountAmount);
 
   function updateLineItem(idx: number, field: string, value: any) {
     setLineItems((prev) => prev.map((li, i) => i === idx ? { ...li, [field]: value } : li));
