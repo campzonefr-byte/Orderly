@@ -629,18 +629,25 @@ function OrderModal({
   const willRecreate = editability?.willRecreateParcel === true;
    // Original total from the source (Shopify/Converty) — never recalculated
    const originalTotal = Number(order.total);
-   const [addedItems, setAddedItems] = useState<number[]>([]);
+
+   // Delta = what changed vs the original order
+   const delta = lineItems.reduce((sum, li) => {
+     const original = order.lineItems.find((o) => o.id === li.id);
+     if (!original) {
+       // New product added
+       return sum + li.price * li.quantity;
+     }
+     // Existing product: only the quantity difference counts
+     const qtyDiff = li.quantity - original.quantity;
+     return sum + Number(original.price) * qtyDiff;
+   }, 0);
  
-   // Original total + only newly added items
-   const addedTotal = lineItems
-     .filter((_, idx) => addedItems.includes(idx))
-     .reduce((s, p) => s + p.price * p.quantity, 0);
+   // Removed products
+   const removed = order.lineItems
+     .filter((o) => !lineItems.some((li) => li.id === o.id))
+     .reduce((s, o) => s + Number(o.price) * o.quantity, 0);
  
-   const removedTotal = order.lineItems
-     .filter((orig) => !lineItems.some((li) => li.id === orig.id))
-     .reduce((s, li) => s + Number(li.price) * li.quantity, 0);
- 
-   const subtotalCalc = Math.max(0, originalTotal + addedTotal - removedTotal);
+   const subtotalCalc = Math.max(0, originalTotal + delta - removed);
  
    const discountAmount =
      discountType === "PERCENT"
@@ -655,17 +662,7 @@ function OrderModal({
     setLineItems((prev) => prev.map((li, i) => i === idx ? { ...li, [field]: value } : li));
   }
 
-  function removeLineItem(idx: number) {
-    setLineItems((prev) => prev.filter((_, i) => i !== idx));
-    setAddedItems((prev) => prev.filter((i) => i !== idx).map((i) => (i > idx ? i - 1 : i)));
-  }
-
-  function addLineItem() {
-    setLineItems((prev) => {
-      setAddedItems((a) => [...a, prev.length]);
-      return [...prev, { id: "", title: "", sku: "", variantTitle: "", quantity: 1, price: 0 }];
-    });
-  }
+  
 
   async function saveOrder() {
     if (isLocked) return { ok: false, locked: true };
