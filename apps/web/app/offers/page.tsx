@@ -43,6 +43,8 @@ function OfferModal({
   const [type, setType] = useState<"FIXED" | "PERCENT">("FIXED");
   const [price, setPrice] = useState("");
   const [percent, setPercent] = useState("");
+  const [startsAt, setStartsAt] = useState("");
+  const [endsAt, setEndsAt] = useState("");
 
   const basePrice = Number(product.sellPrice ?? 0);
 
@@ -80,11 +82,13 @@ function OfferModal({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          quantity: q,
-          priceType: type,
-          price: type === "FIXED" ? parseFloat(price) : undefined,
-          percent: type === "PERCENT" ? parseFloat(percent) : undefined,
-        }),
+            quantity: q,
+            priceType: type,
+            price: type === "FIXED" ? parseFloat(price) : undefined,
+            percent: type === "PERCENT" ? parseFloat(percent) : undefined,
+            startsAt: startsAt || null,
+            endsAt: endsAt || null,
+          }),
       });
       setPrice("");
       setPercent("");
@@ -177,6 +181,12 @@ function OfferModal({
                           : "Prix fixe"}
                         {basePrice > 0 && ` · économie ${saving.toFixed(3)} TND`}
                       </p>
+                      {((o as any).startsAt || (o as any).endsAt) && (
+                        <p className="text-[10px] text-muted">
+                          {(o as any).startsAt && `du ${new Date((o as any).startsAt).toLocaleDateString("fr-FR")}`}
+                          {(o as any).endsAt && ` au ${new Date((o as any).endsAt).toLocaleDateString("fr-FR")}`}
+                        </p>
+                      )}
                     </div>
                     <button
                       onClick={() => removeOffer(o.id)}
@@ -264,7 +274,29 @@ function OfferModal({
                 />
               </div>
             )}
-
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="mb-1 block text-[11px] text-muted">Valide à partir du</label>
+                <Input
+                  type="date"
+                  value={startsAt}
+                  onChange={(e) => setStartsAt(e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] text-muted">Jusqu'au</label>
+                <Input
+                  type="date"
+                  value={endsAt}
+                  onChange={(e) => setEndsAt(e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+            <p className="text-[10px] text-muted">
+              Laisser vide pour appliquer sans limite de date
+            </p>
             <Button
               size="sm"
               className="w-full"

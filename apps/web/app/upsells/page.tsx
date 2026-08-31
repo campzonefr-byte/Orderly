@@ -40,6 +40,12 @@ function UpsellModal({
   );
   const [products, setProducts] = useState<any[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [startsAt, setStartsAt] = useState(
+    upsell?.startsAt ? upsell.startsAt.slice(0, 10) : ""
+  );
+  const [endsAt, setEndsAt] = useState(
+    upsell?.endsAt ? upsell.endsAt.slice(0, 10) : ""
+  );
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -63,7 +69,14 @@ function UpsellModal({
 
     setLoading(true);
     try {
-      const body = { storeId, name: name.trim(), triggerProductId, items: validItems };
+        const body = {
+            storeId,
+            name: name.trim(),
+            triggerProductId,
+            items: validItems,
+            startsAt: startsAt || null,
+            endsAt: endsAt || null,
+          };
 
       if (upsell) {
         await fetch(`${API}/upsells/${upsell.id}`, {
@@ -72,7 +85,12 @@ function UpsellModal({
             Authorization: `Bearer ${getToken()}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ name: body.name, items: body.items }),
+          body: JSON.stringify({
+            name: body.name,
+            items: body.items,
+            startsAt: body.startsAt,
+            endsAt: body.endsAt,
+          }),
         });
       } else {
         await fetch(`${API}/upsells`, {
@@ -159,7 +177,27 @@ function UpsellModal({
               </select>
             )}
           </div>
-
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted">Valide à partir du</label>
+              <Input
+                type="date"
+                value={startsAt}
+                onChange={(e) => setStartsAt(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted">Jusqu'au</label>
+              <Input
+                type="date"
+                value={endsAt}
+                onChange={(e) => setEndsAt(e.target.value)}
+              />
+            </div>
+          </div>
+          <p className="-mt-2 text-[11px] text-muted">
+            Laisser vide pour appliquer sans limite de date
+          </p>
           <div>
             <div className="mb-2 flex items-center justify-between">
               <label className="text-xs font-medium text-muted">
