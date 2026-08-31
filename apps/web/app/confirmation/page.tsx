@@ -634,27 +634,59 @@ function OrderModal({
 
   const [computedPrices, setComputedPrices] = useState<Record<string, number>>({});
 
-  // Recompute line totals using quantity offers
+  const [upsellPrices, setUpsellPrices] = useState<Record<string, any>>({});
+
+  // Recompute line totals using upsells first, then quantity offers
   useEffect(() => {
     (async () => {
+      const skus = lineItems.map((li) => li.sku).filter(Boolean) as string[];
+
+      // 1. Check upsells
+      let upsells: Record<string, any> = {};
+      if (skus.length > 1) {
+        try {
+          const res = await fetch(`${API}/upsells/compute/${order.storeId}`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${getToken()}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ skus }),
+          });
+          const data = await res.json();
+          upsells = data.prices ?? {};
+        } catch {}
+      }
+      setUpsellPrices(upsells);
+
+      // 2. Compute each line
       const results: Record<string, number> = {};
       await Promise.all(
         lineItems.map(async (li, idx) => {
-          if (!li.sku) {
-            results[idx] = (Number(li.price) || 0) * (Number(li.quantity) || 0);
+          const qty = Number(li.quantity) || 0;
+
+          // Upsell price wins
+          if (li.sku && upsells[li.sku]) {
+            results[idx] = upsells[li.sku].price * qty;
             return;
           }
+
+          if (!li.sku) {
+            results[idx] = (Number(li.price) || 0) * qty;
+            return;
+          }
+
           try {
             const res = await fetch(
-              `${API}/products/price/${order.storeId}/${encodeURIComponent(li.sku)}?quantity=${li.quantity}`,
+              `${API}/products/price/${order.storeId}/${encodeURIComponent(li.sku)}?quantity=${qty}`,
               { headers: { Authorization: `Bearer ${getToken()}` } }
             );
             const data = await res.json();
             results[idx] = data.total > 0
               ? data.total
-              : (Number(li.price) || 0) * (Number(li.quantity) || 0);
+              : (Number(li.price) || 0) * qty;
           } catch {
-            results[idx] = (Number(li.price) || 0) * (Number(li.quantity) || 0);
+            results[idx] = (Number(li.price) || 0) * qty;
           }
         })
       );
@@ -1055,9 +1087,18 @@ function OrderModal({
                           </div>
                           <div>
                             <label className="text-[10px] text-muted">Prix unit.</label>
-                            <span className="w-24 text-right font-mono text-xs text-muted">
-                      {Number(li.price).toFixed(3)}
-                    </span>
+                            <div className="w-24 text-right">
+                      <span className="font-mono text-xs text-muted">
+                        {li.sku && upsellPrices[li.sku]
+                          ? upsellPrices[li.sku].price.toFixed(3)
+                          : Number(li.price).toFixed(3)}
+                      </span>
+                      {li.sku && upsellPrices[li.sku] && (
+                        <p className="text-[9px] font-medium text-status-delivered">
+                          upsell
+                        </p>
+                      )}
+                    </div>
                           </div>
                         </div>
                       </div>
