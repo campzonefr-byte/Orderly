@@ -97,7 +97,10 @@ model Order {
   financialStatus   FinancialStatus   @default(PENDING)
   fulfillmentStatus FulfillmentStatus @default(UNFULFILLED)
   orderStatus       OrderStatus       @default(NOUVEAU)
-
+  discountType      String?   // PERCENT, FIXED
+  discountValue     Decimal?  @db.Decimal(10, 3)
+  discountNote      String?
+  discountGrantedBy String?
   customerName      String?
   customerEmail     String?
   customerPhone     String?

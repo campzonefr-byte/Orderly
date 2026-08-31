@@ -471,6 +471,10 @@ export class OrdersService {
             : null,
         }),
         ...(data.tags !== undefined && { tags: data.tags }),
+        ...(data.discountType !== undefined && { discountType: data.discountType }),
+        ...(data.discountValue !== undefined && { discountValue: data.discountValue }),
+        ...(data.discountNote !== undefined && { discountNote: data.discountNote }),
+        ...(data.discountValue && { discountGrantedBy: actorId }),
         ...(data.lineItems && {
           subtotal,
           total: subtotal + Number(existing.taxTotal) + Number(existing.shippingTotal),
