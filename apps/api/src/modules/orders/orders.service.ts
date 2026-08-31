@@ -474,10 +474,11 @@ export class OrdersService {
         ...(data.discountType !== undefined && { discountType: data.discountType }),
         ...(data.discountValue !== undefined && { discountValue: data.discountValue }),
         ...(data.discountNote !== undefined && { discountNote: data.discountNote }),
+        ...(data.total !== undefined && { total: data.total }),
+        ...(data.subtotal !== undefined && { subtotal: data.subtotal }),
+        ...(data.shippingTotal !== undefined && { shippingTotal: data.shippingTotal }),
         ...(data.discountValue && { discountGrantedBy: actorId }),
         ...(data.lineItems && {
-          subtotal,
-          total: subtotal + Number(existing.taxTotal) + Number(existing.shippingTotal),
           lineItems: {
             deleteMany: {},
             create: data.lineItems.map((li: any) => ({
