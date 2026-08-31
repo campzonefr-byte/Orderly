@@ -570,7 +570,7 @@ function OrderDetailModal({
                       )}
                     </p>
                     <p className="font-mono text-[11px] text-muted">
-                      {li.sku || "sans SKU"} · Qté {li.quantity}
+                    {li.sku || "sans SKU"} · Qté {li.quantity} · unitaire
                     </p>
                   </div>
                   <p className="shrink-0 font-mono text-sm font-medium">
