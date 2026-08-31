@@ -51,10 +51,7 @@ export function ProductModal({
 }) {
   const [tab, setTab] = useState<"stock" | "offers" | "stats" | "history">("stock");
   const [offers, setOffers] = useState<any[]>([]);
-  const [newOfferQty, setNewOfferQty] = useState("2");
-  const [newOfferType, setNewOfferType] = useState<"FIXED" | "PERCENT">("FIXED");
-  const [newOfferPrice, setNewOfferPrice] = useState("");
-  const [newOfferPercent, setNewOfferPercent] = useState("");
+ 
   const [product, setProduct] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -161,49 +158,9 @@ export function ProductModal({
       setBusy(false);
     }
   }
-  async function addOffer() {
-    const qty = parseInt(newOfferQty);
-    if (!qty || qty < 2) return;
-    setBusy(true);
-    try {
-      await fetch(`${API}/products/${productId}/offers`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          quantity: qty,
-          priceType: newOfferType,
-          price: newOfferType === "FIXED" ? parseFloat(newOfferPrice) || 0 : undefined,
-          percent: newOfferType === "PERCENT" ? parseFloat(newOfferPercent) || 0 : undefined,
-        }),
-      });
-      setNewOfferPrice("");
-      setNewOfferPercent("");
-      await load();
-    } finally {
-      setBusy(false);
-    }
-  }
+ 
 
-  async function removeOffer(id: string) {
-    await fetch(`${API}/products/offers/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    await load();
-  }
-  if (loading || !product) {
-    return (
-      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
-        <div className="rounded-xl border border-border bg-surface px-8 py-6">
-          <p className="text-sm text-muted">Chargement...</p>
-        </div>
-      </div>
-    );
-  }
-
+  
   const isLow = product.quantityAvailable <= product.lowStockThreshold;
   const isOut = product.quantityAvailable === 0;
 
@@ -482,142 +439,7 @@ export function ProductModal({
               </div>
             </div>
           )}
-                  {tab === "offers" && (
-            <div className="space-y-4">
-              <div className="rounded-lg bg-primary-soft px-3 py-2.5 text-[11px] text-primary">
-                <p className="font-semibold">Prix dégressifs par quantité</p>
-                <p className="mt-0.5">
-                  Définissez un prix spécial quand le client achète plusieurs unités.
-                  Le prix de base est {product.sellPrice ? Number(product.sellPrice).toFixed(3) : "0.000"} TND.
-                </p>
-              </div>
-
-              {offers.length > 0 && (
-                <div className="space-y-2">
-                  {offers.map((o) => {
-                    const base = Number(product.sellPrice ?? 0);
-                    const normalTotal = base * o.quantity;
-                    const offerTotal =
-                      o.priceType === "PERCENT"
-                        ? normalTotal * (1 - Number(o.percent) / 100)
-                        : Number(o.price);
-                    const saving = normalTotal - offerTotal;
-
-                    return (
-                      <div
-                        key={o.id}
-                        className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5"
-                      >
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-xs font-bold text-primary">
-                          ×{o.quantity}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-semibold">
-                            {offerTotal.toFixed(3)} TND
-                            <span className="ml-1.5 font-normal text-muted line-through">
-                              {normalTotal.toFixed(3)}
-                            </span>
-                          </p>
-                          <p className="text-[10px] text-status-delivered">
-                            Économie {saving.toFixed(3)} TND
-                            {o.priceType === "PERCENT" && ` (${Number(o.percent)}%)`}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => removeOffer(o.id)}
-                          className="text-muted hover:text-status-cancelled"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div className="rounded-lg border border-border p-3 space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                  Ajouter une offre
-                </p>
-
-                <div className="flex gap-2">
-                  <div>
-                    <label className="mb-1 block text-[11px] text-muted">Quantité</label>
-                    <Input
-                      type="number"
-                      value={newOfferQty}
-                      onChange={(e) => setNewOfferQty(e.target.value)}
-                      min={2}
-                      className="h-8 w-20 text-xs"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <label className="mb-1 block text-[11px] text-muted">Type</label>
-                    <div className="flex h-8 rounded-md border border-border overflow-hidden">
-                      {[
-                        { key: "FIXED", label: "Prix fixe" },
-                        { key: "PERCENT", label: "Remise %" },
-                      ].map((t) => (
-                        <button
-                          key={t.key}
-                          onClick={() => setNewOfferType(t.key as any)}
-                          className={cn(
-                            "flex-1 text-xs font-medium transition-colors",
-                            newOfferType === t.key
-                              ? "bg-primary text-white"
-                              : "bg-surface text-muted hover:bg-surface-sunken"
-                          )}
-                        >
-                          {t.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {newOfferType === "FIXED" ? (
-                  <div>
-                    <label className="mb-1 block text-[11px] text-muted">
-                      Prix total pour {newOfferQty} unités (TND)
-                    </label>
-                    <Input
-                      type="number"
-                      value={newOfferPrice}
-                      onChange={(e) => setNewOfferPrice(e.target.value)}
-                      placeholder="ex: 95.000"
-                      step="0.001"
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                ) : (
-                  <div>
-                    <label className="mb-1 block text-[11px] text-muted">
-                      Remise en % sur le prix normal
-                    </label>
-                    <Input
-                      type="number"
-                      value={newOfferPercent}
-                      onChange={(e) => setNewOfferPercent(e.target.value)}
-                      placeholder="ex: 15"
-                      min={0}
-                      max={100}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                )}
-
-                <Button
-                  size="sm"
-                  className="w-full"
-                  disabled={busy || (!newOfferPrice && !newOfferPercent)}
-                  onClick={addOffer}
-                >
-                  {busy ? "..." : "Ajouter l'offre"}
-                </Button>
-              </div>
-            </div>
-          )}  
-
+               
           {tab === "stats" && stats && (
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-3">
