@@ -632,11 +632,40 @@ function OrderModal({
   const [shippingFree, setShippingFree] = useState(false);
   const [shippingReason, setShippingReason] = useState("");
 
+  const [computedPrices, setComputedPrices] = useState<Record<string, number>>({});
+
+  // Recompute line totals using quantity offers
+  useEffect(() => {
+    (async () => {
+      const results: Record<string, number> = {};
+      await Promise.all(
+        lineItems.map(async (li, idx) => {
+          if (!li.sku) {
+            results[idx] = (Number(li.price) || 0) * (Number(li.quantity) || 0);
+            return;
+          }
+          try {
+            const res = await fetch(
+              `${API}/products/price/${order.storeId}/${encodeURIComponent(li.sku)}?quantity=${li.quantity}`,
+              { headers: { Authorization: `Bearer ${getToken()}` } }
+            );
+            const data = await res.json();
+            results[idx] = data.total > 0
+              ? data.total
+              : (Number(li.price) || 0) * (Number(li.quantity) || 0);
+          } catch {
+            results[idx] = (Number(li.price) || 0) * (Number(li.quantity) || 0);
+          }
+        })
+      );
+      setComputedPrices(results);
+    })();
+  }, [lineItems, order.storeId]);
+
   const productsTotal = lineItems.reduce(
-    (s, li) => s + (Number(li.price) || 0) * (Number(li.quantity) || 0),
+    (s, li, idx) => s + (computedPrices[idx] ?? (Number(li.price) || 0) * (Number(li.quantity) || 0)),
     0
   );
-
   // Recalculate shipping when products or city change
   useEffect(() => {
     if (productsTotal <= 0) {
