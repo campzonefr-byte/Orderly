@@ -94,6 +94,17 @@ model UpsellItem {
 
   @@unique([upsellId, productId])
 }
+model ProductAlias {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  alias     String
+
+  createdAt DateTime @default(now())
+
+  @@unique([productId, alias])
+  @@index([alias])
+}
 model QuantityOffer {
   id         String   @id @default(cuid())
   productId  String
@@ -303,6 +314,7 @@ model Product {
   stockAlerts       StockAlert[]
   inventoryLogs     InventoryLog[]
   quantityOffers    QuantityOffer[]
+  aliases          ProductAlias[]
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

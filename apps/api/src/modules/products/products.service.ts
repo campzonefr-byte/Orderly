@@ -405,4 +405,54 @@ export class ProductsService {
       },
     };
   }
+  async listAliases(productId: string) {
+    return this.prisma.productAlias.findMany({
+      where: { productId },
+      orderBy: { alias: 'asc' },
+    });
+  }
+
+  async addAlias(productId: string, alias: string) {
+    const clean = alias.trim();
+    if (!clean) throw new Error('Alias vide');
+
+    return this.prisma.productAlias.upsert({
+      where: { productId_alias: { productId, alias: clean } },
+      create: { productId, alias: clean },
+      update: {},
+    });
+  }
+
+  async removeAlias(id: string) {
+    return this.prisma.productAlias.delete({ where: { id } });
+  }
+
+  // Find a product by SKU, exact name, or alias
+  async resolveProduct(storeId: string, sku: string | null, title: string) {
+    // 1. Try SKU first
+    if (sku) {
+      const bySku = await this.prisma.product.findUnique({
+        where: { storeId_sku: { storeId, sku } },
+      });
+      if (bySku) return bySku;
+    }
+
+    // 2. Try exact name
+    const byName = await this.prisma.product.findFirst({
+      where: { storeId, name: { equals: title, mode: 'insensitive' } },
+    });
+    if (byName) return byName;
+
+    // 3. Try aliases
+    const alias = await this.prisma.productAlias.findFirst({
+      where: {
+        alias: { equals: title, mode: 'insensitive' },
+        product: { storeId },
+      },
+      include: { product: true },
+    });
+    if (alias) return alias.product;
+
+    return null;
+  }
 }

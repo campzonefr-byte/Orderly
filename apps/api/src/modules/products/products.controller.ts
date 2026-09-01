@@ -46,7 +46,20 @@ import {
   removeOffer(@Param('offerId') offerId: string) {
     return this.products.removeOffer(offerId);
   }
+  @Get(':id/aliases')
+  listAliases(@Param('id') id: string) {
+    return this.products.listAliases(id);
+  }
 
+  @Post(':id/aliases')
+  addAlias(@Param('id') id: string, @Body() body: { alias: string }) {
+    return this.products.addAlias(id, body.alias ?? '');
+  }
+
+  @Delete('aliases/:aliasId')
+  removeAlias(@Param('aliasId') aliasId: string) {
+    return this.products.removeAlias(aliasId);
+  }
   @Get('price/:storeId/:sku')
   computePrice(
     @Param('storeId') storeId: string,
