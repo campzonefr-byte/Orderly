@@ -479,7 +479,72 @@ export function ProductModal({
               </div>
             </div>
           )}
-                    {tab === "aliases" && (
+                    {tab === "offers" && (
+            <div className="space-y-4">
+              {offers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Tag className="h-7 w-7 text-muted-light" />
+                  <p className="mt-2 text-sm font-medium">Aucune offre quantité</p>
+                  <p className="mt-1 text-center text-xs text-muted max-w-xs">
+                    Définissez des prix dégressifs depuis la page Offres quantité.
+                  </p>
+                  <a href="/offers" className="mt-3 text-xs font-medium text-primary hover:underline">
+                    Aller à la page Offres →
+                  </a>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    {offers.map((o: any) => {
+                      const base = Number(product.sellPrice ?? 0);
+                      const normal = base * o.quantity;
+                      const offerTotal =
+                        o.priceType === "PERCENT"
+                          ? normal * (1 - Number(o.percent) / 100)
+                          : Number(o.price);
+                      const saving = normal - offerTotal;
+
+                      return (
+                        <div
+                          key={o.id}
+                          className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5"
+                        >
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-xs font-bold text-primary">
+                            ×{o.quantity}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold">
+                              {offerTotal.toFixed(3)} TND
+                              {base > 0 && (
+                                <span className="ml-1.5 text-xs font-normal text-muted line-through">
+                                  {normal.toFixed(3)}
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-[11px] text-status-delivered">
+                              {o.priceType === "PERCENT"
+                                ? `Remise ${Number(o.percent)}%`
+                                : "Prix fixe"}
+                              {base > 0 && ` · économie ${saving.toFixed(3)} TND`}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  
+                    href="/offers"
+                    className="flex items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-primary hover:bg-primary-soft"
+                  >
+                    <Settings className="h-3.5 w-3.5" />
+                    Modifier les offres
+                  </a>
+                </>
+              )}
+            </div>
+          )}
+            {tab === "aliases" && (
             <div className="space-y-4">
               <div className="rounded-lg bg-primary-soft px-3 py-2.5 text-[11px] text-primary">
                 <p className="font-semibold">Noms alternatifs</p>
