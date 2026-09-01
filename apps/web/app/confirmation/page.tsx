@@ -725,29 +725,38 @@ function OrderModal({
     (s, li, idx) => s + (computedPrices[idx] ?? (Number(li.price) || 0) * (Number(li.quantity) || 0)),
     0
   );
-  // Recalculate shipping when products or city change
-  useEffect(() => {
-    if (productsTotal <= 0) {
-      setShippingCost(0);
-      setShippingFree(false);
-      setShippingReason("Commande vide");
-      return;
-    }
-    (async () => {
-      try {
-        const res = await fetch(
-          `${API}/shipping/calculate/${order.storeId}?subtotal=${productsTotal}&city=${encodeURIComponent(city)}`,
-          { headers: { Authorization: `Bearer ${getToken()}` } }
-        );
-        const data = await res.json();
-        setShippingCost(data.cost ?? 0);
-        setShippingFree(data.isFree ?? false);
-        setShippingReason(data.reason ?? "");
-      } catch {
-        setShippingCost(Number(order.shippingTotal) || 0);
+    // Recalculate shipping only when the agent modifies the items
+    useEffect(() => {
+      if (productsTotal <= 0) {
+        setShippingCost(0);
+        setShippingFree(false);
+        setShippingReason("Commande vide");
+        return;
       }
-    })();
-  }, [productsTotal, city, order.storeId]);
+  
+      // Untouched order: keep the shipping from the source
+      if (!itemsChanged) {
+        setShippingCost(Number(order.shippingTotal) || 0);
+        setShippingFree(false);
+        setShippingReason("Livraison d'origine");
+        return;
+      }
+  
+      (async () => {
+        try {
+          const res = await fetch(
+            `${API}/shipping/calculate/${order.storeId}?subtotal=${productsTotal}&city=${encodeURIComponent(city)}`,
+            { headers: { Authorization: `Bearer ${getToken()}` } }
+          );
+          const data = await res.json();
+          setShippingCost(data.cost ?? 0);
+          setShippingFree(data.isFree ?? false);
+          setShippingReason(data.reason ?? "");
+        } catch {
+          setShippingCost(Number(order.shippingTotal) || 0);
+        }
+      })();
+    }, [productsTotal, city, order.storeId, itemsChanged]);
 
   const subtotalCalc = productsTotal + shippingCost;
  
