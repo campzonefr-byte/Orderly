@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
-  Plus, X, Package, Trash2, Settings2, ArrowRight, Layers,
+  Plus, X, Package, Trash2, Settings2, ArrowRight, Layers,RefreshCw,
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
@@ -298,6 +298,32 @@ function UpsellsContent() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editUpsell, setEditUpsell] = useState<any>(null);
+  const [syncing, setSyncing] = useState(false);
+
+  async function syncEasySell() {
+    const storeId = selectedStoreIds[0];
+    if (!storeId) return;
+    setSyncing(true);
+    try {
+      const res = await fetch(`${API}/products/sync-easysell-bumps/${storeId}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        alert(`${data.created} upsells synchronisés depuis EasySell.`);
+        fetchUpsells();
+      } else {
+        alert(data.error ?? "Échec de la synchronisation");
+      }
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   const accessibleStores = stores.filter((s) => canAccessStore(s.id));
 
@@ -363,10 +389,16 @@ function UpsellsContent() {
             <h1 className="text-base font-semibold">Upsells</h1>
             <p className="text-xs text-muted">Prix spéciaux quand deux produits sont achetés ensemble</p>
           </div>
-          <Button size="sm" onClick={() => { setEditUpsell(null); setShowModal(true); }}>
-            <Plus className="h-3.5 w-3.5" />
-            Nouvel upsell
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" disabled={syncing} onClick={syncEasySell}>
+              <RefreshCw className={cn("h-3.5 w-3.5", syncing && "animate-spin")} />
+              {syncing ? "Synchronisation..." : "Synchroniser EasySell"}
+            </Button>
+            <Button size="sm" onClick={() => { setEditUpsell(null); setShowModal(true); }}>
+              <Plus className="h-3.5 w-3.5" />
+              Nouvel upsell
+            </Button>
+          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-5">
