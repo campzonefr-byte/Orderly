@@ -1075,16 +1075,21 @@ function OrderModal({
                             onSelect={(prod, raw) => {
                               if (prod) {
                                 setLineItems((prev) =>
-                                  prev.map((x, i) =>
-                                    i === idx
-                                      ? {
-                                          ...x,
-                                          title: prod.name,
-                                          sku: prod.sku,
-                                          price: (prod as any).price ?? (prod as any).sellPrice ?? 0,
-                                        }
-                                      : x
-                                  )
+                                  prev.map((x, i) => {
+                                    if (i !== idx) return x;
+                                    // Same product as before: keep the original price
+                                    const isSameProduct =
+                                      (x as any).productId === prod.id || x.sku === prod.sku;
+                                    return {
+                                      ...x,
+                                      productId: prod.id,
+                                      title: prod.name,
+                                      sku: prod.sku,
+                                      price: isSameProduct
+                                        ? x.price
+                                        : ((prod as any).price ?? (prod as any).sellPrice ?? 0),
+                                    };
+                                  })
                                 );
                               } else {
                                 updateLineItem(idx, "title", raw);
