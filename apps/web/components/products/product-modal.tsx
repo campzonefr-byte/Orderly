@@ -533,7 +533,7 @@ export function ProductModal({
                     })}
                   </div>
 
-                  
+                  <a
                     href="/offers"
                     className="flex items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-primary hover:bg-primary-soft"
                   >
