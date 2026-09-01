@@ -191,7 +191,15 @@ export function ProductModal({
     await load();
   }
 
-  
+  if (loading || !product) {
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
+        <div className="rounded-xl border border-border bg-surface px-8 py-6">
+          <p className="text-sm text-muted">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
   const isLow = product.quantityAvailable <= product.lowStockThreshold;
   const isOut = product.quantityAvailable === 0;
 
