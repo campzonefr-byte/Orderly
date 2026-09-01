@@ -73,6 +73,10 @@ import {
   relink(@Param('storeId') storeId: string) {
     return this.products.relinkOrderLines(storeId);
   }
+  @Post('sync-easysell/:storeId')
+  syncEasySell(@Param('storeId') storeId: string) {
+    return this.products.syncEasySellOffers(storeId);
+  }
     @Get(':id')
     getOne(@Param('id') id: string) {
       return this.products.getOne(id);

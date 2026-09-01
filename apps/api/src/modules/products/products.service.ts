@@ -507,4 +507,145 @@ export class ProductsService {
 
     return { ok: true, checked: lines.length, linked };
   }
+    // Read EasySell quantity offers from a Shopify storefront product page
+    async syncEasySellOffers(storeId: string) {
+      const store = await this.prisma.store.findUnique({ where: { id: storeId } });
+      if (!store) return { ok: false, error: 'Magasin introuvable' };
+  
+      const creds = (store.credentials as any) ?? {};
+      const domain = creds.shopDomain;
+      if (!domain) return { ok: false, error: 'Domaine Shopify manquant' };
+  
+      const products = await this.prisma.product.findMany({
+        where: { storeId, isActive: true },
+        select: { id: true, sku: true, name: true, sellPrice: true, externalId: true },
+      });
+  
+      if (products.length === 0) return { ok: false, error: 'Aucun produit' };
+  
+      // Fetch one product page to grab the global EasySell config
+      let html = '';
+      try {
+        const res = await fetch(`https://${domain}/products.json?limit=1`);
+        const data: any = await res.json();
+        const handle = data?.products?.[0]?.handle;
+        if (!handle) return { ok: false, error: 'Aucun produit trouve sur la boutique' };
+  
+        const pageRes = await fetch(`https://${domain}/products/${handle}`);
+        html = await pageRes.text();
+      } catch (e: any) {
+        return { ok: false, error: `Impossible de lire la boutique : ${e?.message}` };
+      }
+  
+      // Extract EASYSELL_QUANTITY_OFFERS
+      const match = html.match(
+        /window\.EASYSELL_QUANTITY_OFFERS\s*=\s*(\[[\s\S]*?\]);/,
+      );
+      if (!match) {
+        return { ok: false, error: 'Configuration EasySell introuvable sur la page' };
+      }
+  
+      let config: any[];
+      try {
+        config = JSON.parse(match[1]);
+      } catch {
+        return { ok: false, error: 'Configuration EasySell illisible' };
+      }
+  
+      // Map Shopify product GIDs to Orderly products
+      const shopifyProducts = await this.fetchShopifyProductMap(domain, creds.accessToken);
+  
+      let created = 0;
+      let skipped = 0;
+      const details: any[] = [];
+  
+      for (const group of config) {
+        if (!group.enabled) continue;
+  
+        for (const gid of group.productIds ?? []) {
+          const shopifyId = String(gid).split('/').pop();
+          const skus = shopifyProducts[shopifyId!] ?? [];
+  
+          for (const sku of skus) {
+            const product = products.find((p) => p.sku === sku);
+            if (!product) {
+              skipped++;
+              continue;
+            }
+  
+            const basePrice = Number(product.sellPrice ?? 0);
+            if (basePrice === 0) {
+              skipped++;
+              continue;
+            }
+  
+            for (const offer of group.offers ?? []) {
+              const qty = Number(offer.quantity);
+              if (!qty || qty < 2) continue;
+  
+              const d = offer.discount ?? {};
+              if (d.type === 'no_discount') continue;
+  
+              let payload: any = { productId: product.id, quantity: qty };
+  
+              if (d.type === 'percentage') {
+                payload.priceType = 'PERCENT';
+                payload.percent = Number(d.value);
+              } else {
+                // fixed = total discount amount off the normal price
+                const normal = basePrice * qty;
+                payload.priceType = 'FIXED';
+                payload.price = normal - Number(d.value);
+              }
+  
+              payload.label = offer.title ?? null;
+  
+              await this.prisma.quantityOffer.upsert({
+                where: {
+                  productId_quantity: { productId: product.id, quantity: qty },
+                },
+                create: payload,
+                update: {
+                  priceType: payload.priceType,
+                  price: payload.price ?? null,
+                  percent: payload.percent ?? null,
+                  label: payload.label,
+                },
+              });
+  
+              created++;
+              details.push({
+                product: product.name,
+                quantity: qty,
+                type: payload.priceType,
+                value: payload.price ?? payload.percent,
+              });
+            }
+          }
+        }
+      }
+  
+      return { ok: true, created, skipped, details };
+    }
+  
+    private async fetchShopifyProductMap(domain: string, token?: string) {
+      const map: Record<string, string[]> = {};
+      if (!token) return map;
+  
+      try {
+        const res = await fetch(
+          `https://${domain}/admin/api/2024-10/products.json?limit=250&fields=id,variants`,
+          { headers: { 'X-Shopify-Access-Token': token } },
+        );
+        const data: any = await res.json();
+        for (const p of data?.products ?? []) {
+          const skus = (p.variants ?? [])
+            .map((v: any) => String(v.sku || v.id))
+            .filter(Boolean);
+          map[String(p.id)] = skus;
+        }
+      } catch {}
+  
+      return map;
+    }
 }
