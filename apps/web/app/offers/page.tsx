@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   Plus, X, Tag, Package, Search, Settings2,
-  Trash2, ChevronDown, ChevronUp,
+  Trash2, ChevronDown, ChevronUp,RefreshCw,
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
@@ -330,6 +330,7 @@ function OffersContent() {
   const [search, setSearch] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [openProduct, setOpenProduct] = useState<any>(null);
+  const [syncing, setSyncing] = useState(false);
 
   const accessibleStores = stores.filter((s) => canAccessStore(s.id));
 
@@ -375,7 +376,29 @@ function OffersContent() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
+  async function syncEasySell() {
+    if (!activeStore) return;
+    setSyncing(true);
+    try {
+      const res = await fetch(`${API}/products/sync-easysell/${activeStore}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        alert(`${data.created} offres synchronisées depuis EasySell.`);
+        fetchData();
+      } else {
+        alert(data.error ?? "Échec de la synchronisation");
+      }
+    } finally {
+      setSyncing(false);
+    }
+  }
   const filtered = products.filter((p) => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -399,11 +422,15 @@ function OffersContent() {
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-5">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-5">
           <div>
             <h1 className="text-base font-semibold">Offres quantité</h1>
             <p className="text-xs text-muted">Prix dégressifs par produit</p>
           </div>
+          <Button size="sm" disabled={syncing} onClick={syncEasySell}>
+            <RefreshCw className={cn("h-3.5 w-3.5", syncing && "animate-spin")} />
+            {syncing ? "Synchronisation..." : "Synchroniser depuis EasySell"}
+          </Button>
         </header>
 
         {/* Store tabs */}
