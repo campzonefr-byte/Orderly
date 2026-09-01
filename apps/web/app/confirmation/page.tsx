@@ -637,38 +637,12 @@ function OrderModal({
 
   const [upsellPrices, setUpsellPrices] = useState<Record<string, any>>({});
 
-  
-
-  // Has the agent modified the items?
-  const itemsChanged =
-    lineItems.length !== order.lineItems.length ||
-    lineItems.some((li) => {
-      const orig = order.lineItems.find((o) => o.id === li.id);
-      return !orig || orig.quantity !== li.quantity;
-    });
-    console.log("DEBUG", {
-      itemsChanged,
-      lineItemsCount: lineItems.length,
-      orderItemsCount: order.lineItems.length,
-      lineItems: lineItems.map((li) => ({ id: li.id, qty: li.quantity, price: li.price })),
-      orderItems: order.lineItems.map((o) => ({ id: o.id, qty: o.quantity, price: o.price })),
-    });
+  // Recompute line totals using upsells first, then quantity offers
   useEffect(() => {
     (async () => {
-      // Untouched order: keep the exact prices from the source
-      if (!itemsChanged) {
-        const results: Record<string, number> = {};
-        lineItems.forEach((li, idx) => {
-          results[idx] = (Number(li.price) || 0) * (Number(li.quantity) || 0);
-        });
-        setComputedPrices(results);
-        setUpsellPrices({});
-        return;
-      }
-
-      // Order modified: apply upsells and quantity offers
       const skus = lineItems.map((li) => li.sku).filter(Boolean) as string[];
 
+      // 1. Check upsells
       let upsells: Record<string, any> = {};
       if (skus.length > 1) {
         try {
@@ -678,10 +652,7 @@ function OrderModal({
               Authorization: `Bearer ${getToken()}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-              skus,
-              orderDate: order.sourceCreatedAt,
-            }),
+            body: JSON.stringify({ skus }),
           });
           const data = await res.json();
           upsells = data.prices ?? {};
@@ -689,11 +660,13 @@ function OrderModal({
       }
       setUpsellPrices(upsells);
 
+      // 2. Compute each line
       const results: Record<string, number> = {};
       await Promise.all(
         lineItems.map(async (li, idx) => {
           const qty = Number(li.quantity) || 0;
 
+          // Upsell price wins
           if (li.sku && upsells[li.sku]) {
             results[idx] = upsells[li.sku].price * qty;
             return;
@@ -706,7 +679,7 @@ function OrderModal({
 
           try {
             const res = await fetch(
-              `${API}/products/price/${order.storeId}/${encodeURIComponent(li.sku)}?quantity=${qty}&orderDate=${order.sourceCreatedAt}`,
+              `${API}/products/price/${order.storeId}/${encodeURIComponent(li.sku)}?quantity=${qty}`,
               { headers: { Authorization: `Bearer ${getToken()}` } }
             );
             const data = await res.json();
@@ -720,43 +693,35 @@ function OrderModal({
       );
       setComputedPrices(results);
     })();
-  }, [lineItems, order.storeId, itemsChanged]);
+  }, [lineItems, order.storeId]);
+
   const productsTotal = lineItems.reduce(
     (s, li, idx) => s + (computedPrices[idx] ?? (Number(li.price) || 0) * (Number(li.quantity) || 0)),
     0
   );
-    // Recalculate shipping only when the agent modifies the items
-    useEffect(() => {
-      if (productsTotal <= 0) {
-        setShippingCost(0);
-        setShippingFree(false);
-        setShippingReason("Commande vide");
-        return;
-      }
-  
-      // Untouched order: keep the shipping from the source
-      if (!itemsChanged) {
+  // Recalculate shipping when products or city change
+  useEffect(() => {
+    if (productsTotal <= 0) {
+      setShippingCost(0);
+      setShippingFree(false);
+      setShippingReason("Commande vide");
+      return;
+    }
+    (async () => {
+      try {
+        const res = await fetch(
+          `${API}/shipping/calculate/${order.storeId}?subtotal=${productsTotal}&city=${encodeURIComponent(city)}`,
+          { headers: { Authorization: `Bearer ${getToken()}` } }
+        );
+        const data = await res.json();
+        setShippingCost(data.cost ?? 0);
+        setShippingFree(data.isFree ?? false);
+        setShippingReason(data.reason ?? "");
+      } catch {
         setShippingCost(Number(order.shippingTotal) || 0);
-        setShippingFree(false);
-        setShippingReason("Livraison d'origine");
-        return;
       }
-  
-      (async () => {
-        try {
-          const res = await fetch(
-            `${API}/shipping/calculate/${order.storeId}?subtotal=${productsTotal}&city=${encodeURIComponent(city)}`,
-            { headers: { Authorization: `Bearer ${getToken()}` } }
-          );
-          const data = await res.json();
-          setShippingCost(data.cost ?? 0);
-          setShippingFree(data.isFree ?? false);
-          setShippingReason(data.reason ?? "");
-        } catch {
-          setShippingCost(Number(order.shippingTotal) || 0);
-        }
-      })();
-    }, [productsTotal, city, order.storeId, itemsChanged]);
+    })();
+  }, [productsTotal, city, order.storeId]);
 
   const subtotalCalc = productsTotal + shippingCost;
  
