@@ -587,6 +587,7 @@ function OrderModal({
   const [lineItems, setLineItems] = useState(
     order.lineItems.map((li) => ({
       id: li.id,
+      productId: (li as any).productId ?? null,
       title: li.title,
       sku: li.sku ?? "",
       variantTitle: li.variantTitle ?? "",
@@ -741,7 +742,7 @@ function OrderModal({
   }
 
   function addLineItem() {
-    setLineItems((prev) => [...prev, { id: "", title: "", sku: "", variantTitle: "", quantity: 1, price: 0 }]);
+    setLineItems((prev) => [...prev, { id: "", productId: null, title: "", sku: "", variantTitle: "", quantity: 1, price: 0 }]);
   }
   
 
@@ -1033,8 +1034,9 @@ function OrderModal({
                     {lineItems.map((li, idx) => (
                       <div key={idx} className="rounded-lg border border-border p-2.5 space-y-2">
                                               <div className="flex items-center gap-2">
-                          <ProductPicker
+                                              <ProductPicker
                             value={li.title}
+                            productId={(li as any).productId}
                             onSelect={(prod, raw) => {
                               if (prod) {
                                 setLineItems((prev) =>

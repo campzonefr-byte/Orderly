@@ -58,6 +58,7 @@ export function useStoreProducts(storeId?: string) {
 
 export function ProductPicker({
   value,
+  productId,
   onSelect,
   products,
   loading,
@@ -65,6 +66,7 @@ export function ProductPicker({
   className,
 }: {
   value: string;
+  productId?: string | null;
   onSelect: (product: StoreProduct | null, rawText: string) => void;
   products: StoreProduct[];
   loading?: boolean;
@@ -111,7 +113,7 @@ export function ProductPicker({
         <Package className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-light" />
         <input
           ref={inputRef}
-          value={open ? query : value}
+          value={open ? query : (productId ? (products.find((p) => p.id === productId)?.name ?? value) : value)}
           onChange={(e) => {
             setQuery(e.target.value);
             onSelect(null, e.target.value);
@@ -150,7 +152,7 @@ export function ProductPicker({
             ) : (
               filtered.map((p, i) => {
                 const lowStock = p.quantityAvailable <= p.lowStockThreshold;
-                const isSelected = p.name === value;
+                const isSelected = productId ? p.id === productId : p.name === value;
                 return (
                   <button
                   key={p.id}
