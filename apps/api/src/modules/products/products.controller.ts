@@ -46,6 +46,7 @@ import {
   removeOffer(@Param('offerId') offerId: string) {
     return this.products.removeOffer(offerId);
   }
+  
   @Get(':id/aliases')
   listAliases(@Param('id') id: string) {
     return this.products.listAliases(id);
@@ -67,6 +68,10 @@ import {
     @Query('quantity') quantity: string,
   ) {
     return this.products.computePrice(storeId, sku, parseInt(quantity) || 1);
+  }
+  @Post('relink/:storeId')
+  relink(@Param('storeId') storeId: string) {
+    return this.products.relinkOrderLines(storeId);
   }
     @Get(':id')
     getOne(@Param('id') id: string) {

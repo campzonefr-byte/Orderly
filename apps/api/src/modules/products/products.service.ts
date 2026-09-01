@@ -455,4 +455,56 @@ export class ProductsService {
 
     return null;
   }
+  async relinkOrderLines(storeId: string) {
+    const lines = await this.prisma.orderLineItem.findMany({
+      where: {
+        productId: null,
+        order: { storeId },
+      },
+      select: { id: true, sku: true, title: true },
+    });
+
+    let linked = 0;
+
+    for (const line of lines) {
+      let productId: string | null = null;
+
+      if (line.sku) {
+        const bySku = await this.prisma.product.findUnique({
+          where: { storeId_sku: { storeId, sku: line.sku } },
+          select: { id: true },
+        });
+        if (bySku) productId = bySku.id;
+      }
+
+      if (!productId && line.title) {
+        const byName = await this.prisma.product.findFirst({
+          where: { storeId, name: { equals: line.title, mode: 'insensitive' } },
+          select: { id: true },
+        });
+        if (byName) productId = byName.id;
+      }
+
+      if (!productId && line.title) {
+        const alias = await this.prisma.productAlias.findFirst({
+          where: {
+            alias: { equals: line.title, mode: 'insensitive' },
+            product: { storeId },
+          },
+          select: { productId: true },
+        });
+        if (alias) productId = alias.productId;
+      }
+
+      if (productId) {
+        await this.prisma.orderLineItem.update({
+          where: { id: line.id },
+          data: { productId },
+        });
+        linked++;
+      }
+    }
+
+    return { ok: true, checked: lines.length, linked };
+  }
 }
