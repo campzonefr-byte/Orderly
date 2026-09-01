@@ -49,8 +49,10 @@ export function ProductModal({
   onClose: () => void;
   onUpdated: () => void;
 }) {
-  const [tab, setTab] = useState<"stock" | "offers" | "stats" | "history">("stock");
+  const [tab, setTab] = useState<"stock" | "offers" | "aliases" | "stats" | "history">("stock");
   const [offers, setOffers] = useState<any[]>([]);
+  const [aliases, setAliases] = useState<any[]>([]);
+  const [newAlias, setNewAlias] = useState("");
  
   const [product, setProduct] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
@@ -72,7 +74,7 @@ export function ProductModal({
   async function load() {
     setLoading(true);
     try {
-      const [pRes, listRes, offersRes] = await Promise.all([
+      const [pRes, listRes, offersRes, aliasRes] = await Promise.all([
         fetch(`${API}/products/${productId}`, {
           headers: { Authorization: `Bearer ${getToken()}` },
         }),
@@ -82,10 +84,14 @@ export function ProductModal({
         fetch(`${API}/products/${productId}/offers`, {
           headers: { Authorization: `Bearer ${getToken()}` },
         }),
+        fetch(`${API}/products/${productId}/aliases`, {
+          headers: { Authorization: `Bearer ${getToken()}` },
+        }),
       ]);
       const p = await pRes.json();
       const list = await listRes.json();
       setOffers(await offersRes.json());
+      setAliases(await aliasRes.json());
       const withStats = Array.isArray(list)
         ? list.find((x: any) => x.id === productId)
         : null;
@@ -158,7 +164,32 @@ export function ProductModal({
       setBusy(false);
     }
   }
- 
+  async function addAlias() {
+    if (!newAlias.trim()) return;
+    setBusy(true);
+    try {
+      await fetch(`${API}/products/${productId}/aliases`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ alias: newAlias.trim() }),
+      });
+      setNewAlias("");
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeAlias(id: string) {
+    await fetch(`${API}/products/aliases/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    await load();
+  }
 
   
   const isLow = product.quantityAvailable <= product.lowStockThreshold;
@@ -251,6 +282,7 @@ export function ProductModal({
           {[
                        { key: "stock", label: "Stock", icon: Package },
                        { key: "offers", label: "Offres", icon: Tag },
+                       { key: "aliases", label: "Alias", icon: Tag },
                        { key: "stats", label: "Statistiques", icon: TrendingDown },
             { key: "history", label: "Historique", icon: History },
           ].map((t) => {
@@ -435,6 +467,49 @@ export function ProductModal({
                   onClick={saveSettings}
                 >
                   Enregistrer les parametres
+                </Button>
+              </div>
+            </div>
+          )}
+                    {tab === "aliases" && (
+            <div className="space-y-4">
+              <div className="rounded-lg bg-primary-soft px-3 py-2.5 text-[11px] text-primary">
+                <p className="font-semibold">Noms alternatifs</p>
+                <p className="mt-0.5">
+                  Quand une commande arrive avec l'un de ces noms, elle sera
+                  automatiquement rattachée à ce produit et le stock sera déduit.
+                </p>
+              </div>
+
+              {aliases.length > 0 && (
+                <div className="space-y-1.5">
+                  {aliases.map((a) => (
+                    <div
+                      key={a.id}
+                      className="flex items-center gap-2 rounded-lg border border-border px-3 py-2"
+                    >
+                      <span className="flex-1 text-xs">{a.alias}</span>
+                      <button
+                        onClick={() => removeAlias(a.id)}
+                        className="text-muted hover:text-status-cancelled"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <Input
+                  value={newAlias}
+                  onChange={(e) => setNewAlias(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addAlias()}
+                  placeholder="ex: Sérum Niacinamide 10%"
+                  className="h-8 flex-1 text-xs"
+                />
+                <Button size="sm" disabled={busy || !newAlias.trim()} onClick={addAlias}>
+                  <Plus className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
