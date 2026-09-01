@@ -539,7 +539,7 @@ export class ProductsService {
   
       // Extract EASYSELL_QUANTITY_OFFERS
       const match = html.match(
-        /window\.EASYSELL_QUANTITY_OFFERS\s*=\s*(\[[\s\S]*?\]);/,
+        /(?:window\.)?EASYSELL_QUANTITY_OFFERS\s*=\s*(\[[\s\S]*?\]);/,
       );
       if (!match) {
         return { ok: false, error: 'Configuration EasySell introuvable sur la page' };
