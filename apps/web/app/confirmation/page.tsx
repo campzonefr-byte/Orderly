@@ -637,12 +637,32 @@ function OrderModal({
 
   const [upsellPrices, setUpsellPrices] = useState<Record<string, any>>({});
 
-  // Recompute line totals using upsells first, then quantity offers
+  
+
+  // Has the agent modified the items?
+  const itemsChanged =
+    lineItems.length !== order.lineItems.length ||
+    lineItems.some((li) => {
+      const orig = order.lineItems.find((o) => o.id === li.id);
+      return !orig || orig.quantity !== li.quantity;
+    });
+
   useEffect(() => {
     (async () => {
+      // Untouched order: keep the exact prices from the source
+      if (!itemsChanged) {
+        const results: Record<string, number> = {};
+        lineItems.forEach((li, idx) => {
+          results[idx] = (Number(li.price) || 0) * (Number(li.quantity) || 0);
+        });
+        setComputedPrices(results);
+        setUpsellPrices({});
+        return;
+      }
+
+      // Order modified: apply upsells and quantity offers
       const skus = lineItems.map((li) => li.sku).filter(Boolean) as string[];
 
-      // 1. Check upsells
       let upsells: Record<string, any> = {};
       if (skus.length > 1) {
         try {
@@ -652,7 +672,10 @@ function OrderModal({
               Authorization: `Bearer ${getToken()}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ skus }),
+            body: JSON.stringify({
+              skus,
+              orderDate: order.sourceCreatedAt,
+            }),
           });
           const data = await res.json();
           upsells = data.prices ?? {};
@@ -660,13 +683,11 @@ function OrderModal({
       }
       setUpsellPrices(upsells);
 
-      // 2. Compute each line
       const results: Record<string, number> = {};
       await Promise.all(
         lineItems.map(async (li, idx) => {
           const qty = Number(li.quantity) || 0;
 
-          // Upsell price wins
           if (li.sku && upsells[li.sku]) {
             results[idx] = upsells[li.sku].price * qty;
             return;
@@ -679,7 +700,7 @@ function OrderModal({
 
           try {
             const res = await fetch(
-              `${API}/products/price/${order.storeId}/${encodeURIComponent(li.sku)}?quantity=${qty}`,
+              `${API}/products/price/${order.storeId}/${encodeURIComponent(li.sku)}?quantity=${qty}&orderDate=${order.sourceCreatedAt}`,
               { headers: { Authorization: `Bearer ${getToken()}` } }
             );
             const data = await res.json();
@@ -693,8 +714,7 @@ function OrderModal({
       );
       setComputedPrices(results);
     })();
-  }, [lineItems, order.storeId]);
-
+  }, [lineItems, order.storeId, itemsChanged]);
   const productsTotal = lineItems.reduce(
     (s, li, idx) => s + (computedPrices[idx] ?? (Number(li.price) || 0) * (Number(li.quantity) || 0)),
     0
