@@ -237,17 +237,56 @@ export class ShopifyWebhook {
     const fulfillmentStatus = this.mapFulfillmentStatus(payload.fulfillment_status);
     const orderStatus = this.deriveOrderStatus(financialStatus, fulfillmentStatus);
 
-    const lineItems = payload.line_items?.map((li: any) => ({
-      sku: li.sku ?? null,
-      title: li.title,
-      variantTitle: li.variant_title ?? null,
-      quantity: li.quantity,
-      fulfilledQty: li.fulfillable_quantity
-        ? li.quantity - li.fulfillable_quantity
-        : 0,
-      refundedQty: 0,
-      price: parseFloat(li.price),
-    })) ?? [];
+    const rawItems = payload.line_items ?? [];
+    const lineItems: any[] = [];
+
+    for (const li of rawItems) {
+      const sku = li.sku ?? null;
+      const title = li.title ?? '';
+
+      // Resolve the matching product by SKU, name, or alias
+      let productId: string | null = null;
+
+      if (sku) {
+        const bySku = await this.prisma.product.findUnique({
+          where: { storeId_sku: { storeId, sku } },
+          select: { id: true },
+        });
+        if (bySku) productId = bySku.id;
+      }
+
+      if (!productId && title) {
+        const byName = await this.prisma.product.findFirst({
+          where: { storeId, name: { equals: title, mode: 'insensitive' } },
+          select: { id: true },
+        });
+        if (byName) productId = byName.id;
+      }
+
+      if (!productId && title) {
+        const alias = await this.prisma.productAlias.findFirst({
+          where: {
+            alias: { equals: title, mode: 'insensitive' },
+            product: { storeId },
+          },
+          select: { productId: true },
+        });
+        if (alias) productId = alias.productId;
+      }
+
+      lineItems.push({
+        sku,
+        title,
+        variantTitle: li.variant_title ?? null,
+        quantity: li.quantity,
+        fulfilledQty: li.fulfillable_quantity
+          ? li.quantity - li.fulfillable_quantity
+          : 0,
+        refundedQty: 0,
+        price: parseFloat(li.price),
+        ...(productId && { productId }),
+      });
+    }
 
     return this.prisma.order.upsert({
       where: {
