@@ -648,4 +648,110 @@ export class ProductsService {
   
       return map;
     }
+    async syncEasySellBumps(storeId: string) {
+      const store = await this.prisma.store.findUnique({ where: { id: storeId } });
+      if (!store) return { ok: false, error: 'Magasin introuvable' };
+  
+      const creds = (store.credentials as any) ?? {};
+      const domain = creds.shopDomain;
+      if (!domain) return { ok: false, error: 'Domaine Shopify manquant' };
+  
+      let html = '';
+      try {
+        const res = await fetch(`https://${domain}/products.json?limit=1`);
+        const data: any = await res.json();
+        const handle = data?.products?.[0]?.handle;
+        if (!handle) return { ok: false, error: 'Aucun produit sur la boutique' };
+  
+        const pageRes = await fetch(`https://${domain}/products/${handle}`);
+        html = await pageRes.text();
+      } catch (e: any) {
+        return { ok: false, error: `Lecture impossible : ${e?.message}` };
+      }
+  
+      const match = html.match(
+        /(?:window\.)?EASYSELL_BUMPS\s*=\s*(\[[\s\S]*?\]);/,
+      );
+      if (!match) return { ok: false, error: 'Bumps EasySell introuvables' };
+  
+      let bumps: any[];
+      try {
+        bumps = JSON.parse(match[1]);
+      } catch {
+        return { ok: false, error: 'Bumps illisibles' };
+      }
+  
+      const shopifyMap = await this.fetchShopifyProductMap(domain, creds.accessToken);
+      const products = await this.prisma.product.findMany({
+        where: { storeId, isActive: true },
+        select: { id: true, sku: true, name: true, sellPrice: true },
+      });
+  
+      let created = 0;
+      const details: any[] = [];
+  
+      for (const bump of bumps) {
+        if (bump.enabled === false) continue;
+  
+        const offerGid = bump.offer?.product?.id;
+        const specialPrice = Number(bump.offer?.price ?? 0);
+        const triggerGids = (bump.criteria?.products ?? []).map((p: any) => p.id);
+  
+        if (!offerGid || !specialPrice || triggerGids.length === 0) continue;
+  
+        const offerShopifyId = String(offerGid).split('/').pop();
+        const offerSkus = shopifyMap[offerShopifyId!] ?? [];
+        const offerProduct = products.find((p) => offerSkus.includes(p.sku));
+        if (!offerProduct) continue;
+  
+        for (const gid of triggerGids) {
+          const triggerShopifyId = String(gid).split('/').pop();
+          const triggerSkus = shopifyMap[triggerShopifyId!] ?? [];
+          const triggerProduct = products.find((p) => triggerSkus.includes(p.sku));
+          if (!triggerProduct) continue;
+          if (triggerProduct.id === offerProduct.id) continue;
+  
+          const existing = await this.prisma.upsell.findFirst({
+            where: { storeId, triggerProductId: triggerProduct.id },
+          });
+  
+          if (existing) {
+            await this.prisma.upsellItem.upsert({
+              where: {
+                upsellId_productId: {
+                  upsellId: existing.id,
+                  productId: offerProduct.id,
+                },
+              },
+              create: {
+                upsellId: existing.id,
+                productId: offerProduct.id,
+                price: specialPrice,
+              },
+              update: { price: specialPrice },
+            });
+          } else {
+            await this.prisma.upsell.create({
+              data: {
+                storeId,
+                name: `EasySell — ${triggerProduct.name}`,
+                triggerProductId: triggerProduct.id,
+                items: {
+                  create: [{ productId: offerProduct.id, price: specialPrice }],
+                },
+              },
+            });
+          }
+  
+          created++;
+          details.push({
+            trigger: triggerProduct.name,
+            offer: offerProduct.name,
+            price: specialPrice,
+          });
+        }
+      }
+  
+      return { ok: true, created, details };
+    }
 }

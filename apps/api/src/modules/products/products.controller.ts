@@ -77,6 +77,10 @@ import {
   syncEasySell(@Param('storeId') storeId: string) {
     return this.products.syncEasySellOffers(storeId);
   }
+  @Post('sync-easysell-bumps/:storeId')
+  syncBumps(@Param('storeId') storeId: string) {
+    return this.products.syncEasySellBumps(storeId);
+  }
     @Get(':id')
     getOne(@Param('id') id: string) {
       return this.products.getOne(id);
