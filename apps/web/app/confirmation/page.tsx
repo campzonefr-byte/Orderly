@@ -646,7 +646,13 @@ function OrderModal({
       const orig = order.lineItems.find((o) => o.id === li.id);
       return !orig || orig.quantity !== li.quantity;
     });
-
+    console.log("DEBUG", {
+      itemsChanged,
+      lineItemsCount: lineItems.length,
+      orderItemsCount: order.lineItems.length,
+      lineItems: lineItems.map((li) => ({ id: li.id, qty: li.quantity, price: li.price })),
+      orderItems: order.lineItems.map((o) => ({ id: o.id, qty: o.quantity, price: o.price })),
+    });
   useEffect(() => {
     (async () => {
       // Untouched order: keep the exact prices from the source
