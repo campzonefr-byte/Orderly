@@ -1067,40 +1067,34 @@ function OrderModal({
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <label className="text-[10px] text-muted">Variante</label>
-                            <Input
-                              value={li.variantTitle}
-                              onChange={(e) => updateLineItem(idx, "variantTitle", e.target.value)}
-                              placeholder="Taille, couleur..."
-                              className="h-7 text-xs"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-muted">Qté</label>
+                        <div className="flex items-center gap-2">
+                          {li.variantTitle && (
+                            <span className="rounded bg-surface-sunken px-2 py-1 text-[10px] text-muted">
+                              {li.variantTitle}
+                            </span>
+                          )}
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-muted">Qté</span>
                             <Input
                               type="number"
                               value={li.quantity}
                               onChange={(e) => updateLineItem(idx, "quantity", parseInt(e.target.value) || 1)}
                               min={1}
-                              className="h-7 text-xs"
+                              disabled={isLocked}
+                              className="h-7 w-14 text-xs"
                             />
                           </div>
-                          <div>
-                            <label className="text-[10px] text-muted">Prix unit.</label>
-                            <div className="w-24 text-right">
-                      <span className="font-mono text-xs text-muted">
-                        {li.sku && upsellPrices[li.sku]
-                          ? upsellPrices[li.sku].price.toFixed(3)
-                          : Number(li.price).toFixed(3)}
-                      </span>
-                      {li.sku && upsellPrices[li.sku] && (
-                        <p className="text-[9px] font-medium text-status-delivered">
-                          upsell
-                        </p>
-                      )}
-                    </div>
+                          <div className="ml-auto text-right">
+                            <span className="font-mono text-xs font-medium">
+                              {li.sku && upsellPrices[li.sku]
+                                ? upsellPrices[li.sku].price.toFixed(3)
+                                : Number(li.price).toFixed(3)}
+                            </span>
+                            {li.sku && upsellPrices[li.sku] && (
+                              <p className="text-[9px] font-medium text-status-delivered">
+                                upsell
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>
