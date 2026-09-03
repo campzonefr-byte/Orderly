@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   Phone, Search, X, ChevronLeft, ChevronRight,CheckCircle2, PhoneMissed, Clock, PhoneOff,
-  Plus, Trash2, Edit2, Check, Building2, Calendar, Archive, Truck,Sparkles,ArrowRightLeft,Lock, AlertTriangle,
+  Plus, Trash2, Edit2, Check, Building2, Calendar, Archive, Truck,Sparkles,ArrowRightLeft,Lock, AlertTriangle,Package,
 } from "lucide-react";
 import { Order, OrderStatus, CallAttempt } from "@/types/order";
 import { OrderStatusBadge } from "@/components/orders/status-badge";
@@ -1031,49 +1031,67 @@ function OrderModal({
                     </button>
                   </div>
                   <div className="space-y-2">
-                    {lineItems.map((li, idx) => (
-                      <div key={idx} className="rounded-lg border border-border p-2.5 space-y-2">
-                                              <div className="flex items-center gap-2">
-                                              <ProductPicker
-                            value={li.title}
-                            productId={(li as any).productId}
-                            onSelect={(prod, raw) => {
-                              if (prod) {
-                                setLineItems((prev) =>
-                                  prev.map((x, i) =>
-                                    i === idx
-                                      ? {
-                                          ...x,
-                                          title: prod.name,
-                                          sku: prod.sku,
-                                          price: (prod as any).price ?? (prod as any).sellPrice ?? 0,
-                                        }
-                                      : x
-                                  )
-                                );
-                              } else {
-                                updateLineItem(idx, "title", raw);
-                              }
-                            }}
-                            products={storeProducts}
-                            loading={loadingProducts}
-                            className="flex-1"
-                          />
-                          <button
-                            onClick={() => removeLineItem(idx)}
-                            disabled={isLocked}
-                            className="text-muted hover:text-status-cancelled disabled:opacity-40"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {li.variantTitle && (
-                            <span className="rounded bg-surface-sunken px-2 py-1 text-[10px] text-muted">
-                              {li.variantTitle}
-                            </span>
+                  {lineItems.map((li, idx) => {
+                      const prod = storeProducts.find(
+                        (p: any) => p.id === (li as any).productId || p.sku === li.sku
+                      );
+                      const unitPrice =
+                        li.sku && upsellPrices[li.sku]
+                          ? upsellPrices[li.sku].price
+                          : Number(li.price);
+
+                      return (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-2.5 rounded-lg border border-border px-2.5 py-2"
+                        >
+                          {(prod as any)?.imageUrl ? (
+                            <img
+                              src={(prod as any).imageUrl}
+                              alt=""
+                              className="h-9 w-9 shrink-0 rounded object-cover border border-border"
+                            />
+                          ) : (
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-border bg-surface-sunken">
+                              <Package className="h-3.5 w-3.5 text-muted-light" />
+                            </div>
                           )}
-                          <div className="flex items-center gap-1">
+
+                          <div className="min-w-0 flex-1">
+                            <ProductPicker
+                              value={li.title}
+                              productId={(li as any).productId}
+                              onSelect={(prod2, raw) => {
+                                if (prod2) {
+                                  setLineItems((prev) =>
+                                    prev.map((x, i) =>
+                                      i === idx
+                                        ? {
+                                            ...x,
+                                            productId: prod2.id,
+                                            title: prod2.name,
+                                            sku: prod2.sku,
+                                            price: (prod2 as any).price ?? (prod2 as any).sellPrice ?? 0,
+                                          }
+                                        : x
+                                    )
+                                  );
+                                } else {
+                                  updateLineItem(idx, "title", raw);
+                                }
+                              }}
+                              products={storeProducts}
+                              loading={loadingProducts}
+                              className="w-full"
+                            />
+                            {li.variantTitle && (
+                              <span className="mt-0.5 inline-block rounded bg-surface-sunken px-1.5 py-0.5 text-[10px] text-muted">
+                                {li.variantTitle}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex shrink-0 items-center gap-1">
                             <span className="text-[10px] text-muted">Qté</span>
                             <Input
                               type="number"
@@ -1084,11 +1102,10 @@ function OrderModal({
                               className="h-7 w-14 text-xs"
                             />
                           </div>
-                          <div className="ml-auto text-right">
-                            <span className="font-mono text-xs font-medium">
-                              {li.sku && upsellPrices[li.sku]
-                                ? upsellPrices[li.sku].price.toFixed(3)
-                                : Number(li.price).toFixed(3)}
+
+                          <div className="w-20 shrink-0 text-right">
+                            <span className="font-mono text-xs font-semibold">
+                              {unitPrice.toFixed(3)}
                             </span>
                             {li.sku && upsellPrices[li.sku] && (
                               <p className="text-[9px] font-medium text-status-delivered">
@@ -1096,9 +1113,17 @@ function OrderModal({
                               </p>
                             )}
                           </div>
+
+                          <button
+                            onClick={() => removeLineItem(idx)}
+                            disabled={isLocked}
+                            className="shrink-0 text-muted hover:text-status-cancelled disabled:opacity-40"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
