@@ -28,8 +28,8 @@ export class StoresController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string, @Query('force') force?: string) {
-    return this.stores.remove(id, force === 'true');
+  remove(@Param('id') id: string) {
+    return this.stores.remove(id);
   }
 
   @Patch(':id/credentials')
