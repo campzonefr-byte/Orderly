@@ -303,19 +303,35 @@ function UpsellsContent() {
   async function syncEasySell() {
     const storeId = selectedStoreIds[0];
     if (!storeId) return;
+
+    const store = stores.find((s) => s.id === storeId);
+    const isConverty = store?.sourceType === "MARKETPLACE";
+
     setSyncing(true);
     try {
-      const res = await fetch(`${API}/products/sync-easysell-bumps/${storeId}`, {
+      const endpoint = isConverty
+        ? `${API}/integrations/converty/${storeId}/sync-upsells`
+        : `${API}/products/sync-easysell-all`;
+
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${getToken()}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify(isConverty ? {} : { storeId }),
       });
       const data = await res.json();
+
       if (data.ok) {
-        alert(`${data.created} upsells synchronisés depuis EasySell.`);
+        if (isConverty) {
+          alert(`${data.created} upsells synchronisés depuis Converty.`);
+        } else {
+          const r = data.results?.[0];
+          alert(
+            `Synchronisation terminée.\n${r?.offers ?? 0} offres quantité\n${r?.upsells ?? 0} upsells`
+          );
+        }
         fetchUpsells();
       } else {
         alert(data.error ?? "Échec de la synchronisation");
@@ -392,7 +408,7 @@ function UpsellsContent() {
           <div className="flex gap-2">
             <Button size="sm" variant="secondary" disabled={syncing} onClick={syncEasySell}>
               <RefreshCw className={cn("h-3.5 w-3.5", syncing && "animate-spin")} />
-              {syncing ? "Synchronisation..." : "Synchroniser EasySell"}
+              {syncing ? "Synchronisation..." : "Synchroniser"}
             </Button>
             <Button size="sm" onClick={() => { setEditUpsell(null); setShowModal(true); }}>
               <Plus className="h-3.5 w-3.5" />
