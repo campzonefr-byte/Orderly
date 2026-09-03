@@ -38,6 +38,12 @@ export class IntegrationsController {
 
   // --- Protected routes ---
   @UseGuards(JwtAuthGuard)
+  @Post('converty/:storeId/sync-upsells')
+  syncConvertyUpsells(@Param('storeId') storeId: string) {
+    return this.converty.syncUpsells(storeId);
+  }
+  
+  @UseGuards(JwtAuthGuard)
   @Get('converty/:storeId/auth-url')
   getAuthUrl(@Param('storeId') storeId: string) {
     return this.converty.getAuthUrl(storeId);
