@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Request,Query } from '@nestjs/common';
 import { StoresService } from './stores.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -28,8 +28,8 @@ export class StoresController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.stores.remove(id);
+  remove(@Param('id') id: string, @Query('force') force?: string) {
+    return this.stores.remove(id, force === 'true');
   }
 
   @Patch(':id/credentials')

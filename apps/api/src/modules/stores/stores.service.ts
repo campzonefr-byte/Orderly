@@ -47,15 +47,59 @@ export class StoresService {
     });
   }
 
-  async remove(id: string) {
-    return this.prisma.store.delete({ where: { id } });
-  }
+  async remove(id: string, force = false) {
+    if (!force) {
+      const count = await this.prisma.order.count({ where: { storeId: id } });
+      if (count > 0) {
+        throw new Error(
+          `Ce magasin contient ${count} commandes et ne peut pas etre supprime.`,
+        );
+      }
+    }
 
-  async updateCredentials(id: string, credentials: Record<string, string>) {
-    return this.prisma.store.update({
-      where: { id },
-      data: { credentials },
+    await this.prisma.orderLineItem.deleteMany({
+      where: { order: { storeId: id } },
     });
+    await this.prisma.orderEvent.deleteMany({
+      where: { order: { storeId: id } },
+    });
+    await this.prisma.fulfillment.deleteMany({
+      where: { order: { storeId: id } },
+    });
+    await this.prisma.refund.deleteMany({
+      where: { order: { storeId: id } },
+    });
+    await this.prisma.order.deleteMany({ where: { storeId: id } });
+
+    await this.prisma.inventoryLog.deleteMany({
+      where: { product: { storeId: id } },
+    });
+    await this.prisma.stockAlert.deleteMany({
+      where: { product: { storeId: id } },
+    });
+    await this.prisma.quantityOffer.deleteMany({
+      where: { product: { storeId: id } },
+    });
+    await this.prisma.productAlias.deleteMany({
+      where: { product: { storeId: id } },
+    });
+    await this.prisma.upsellItem.deleteMany({
+      where: { upsell: { storeId: id } },
+    });
+    await this.prisma.upsell.deleteMany({ where: { storeId: id } });
+    await this.prisma.bundleComponent.deleteMany({
+      where: { bundle: { storeId: id } },
+    });
+    await this.prisma.bundle.deleteMany({ where: { storeId: id } });
+    await this.prisma.product.deleteMany({ where: { storeId: id } });
+
+    await this.prisma.deliveryIntegrationStore.deleteMany({
+      where: { storeId: id },
+    });
+    await this.prisma.shippingRule.deleteMany({ where: { storeId: id } });
+    await this.prisma.userStoreAccess.deleteMany({ where: { storeId: id } });
+
+    return this.prisma.store.delete({ where: { id } });
   }
 
   async getShopifyProducts(id: string) {
