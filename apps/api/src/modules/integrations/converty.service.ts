@@ -613,4 +613,118 @@ export class ConvertyService {
       },
     });
   }
+    async syncUpsells(storeId: string) {
+    const token = await this.getValidToken(storeId);
+    if (!token) return { ok: false, error: 'Converty non connecte' };
+
+    try {
+      const res = await fetch(`${CONVERTY_API}/upsells`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      });
+      const raw = await res.text();
+      if (raw.trim().startsWith('<')) {
+        return { ok: false, error: 'Reponse invalide de Converty' };
+      }
+
+      const data = JSON.parse(raw);
+      if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
+
+      const upsells: any[] = data?.data ?? [];
+
+      // Map Converty product ids to Orderly products
+      const products = await this.prisma.product.findMany({
+        where: { storeId, isActive: true },
+        select: { id: true, sku: true, name: true, sellPrice: true },
+      });
+
+      // Load Converty products to build the id -> sku map
+      const prodRes = await fetch(`${CONVERTY_API}/products?limit=250`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      });
+      const prodData: any = await prodRes.json();
+      const convertyProducts: any[] = prodData?.data ?? [];
+
+      const skuById: Record<string, string[]> = {};
+      for (const p of convertyProducts) {
+        const skus: string[] = [];
+        const variants: any[] = p?.newVariants ?? [];
+        if (variants.length) {
+          variants.forEach((v) => skus.push(String(v.sku ?? v.id)));
+        } else {
+          skus.push(String(p.sku ?? p._id));
+        }
+        skuById[String(p._id)] = skus;
+      }
+
+      let created = 0;
+      const details: any[] = [];
+
+      for (const u of upsells) {
+        if (u.status !== 'shown') continue;
+
+        const triggerIds = (u.products ?? []).map((p: any) => String(p._id));
+        const offers = u.offer ?? [];
+
+        for (const off of offers) {
+          const offerConvertyId = String(off.product);
+          const offerSkus = skuById[offerConvertyId] ?? [];
+          const offerProduct = products.find((p) => offerSkus.includes(p.sku));
+          if (!offerProduct) continue;
+
+          const specialPrice = Number(off.price ?? 0);
+          if (!specialPrice) continue;
+
+          for (const tId of triggerIds) {
+            const triggerSkus = skuById[tId] ?? [];
+            const triggerProduct = products.find((p) => triggerSkus.includes(p.sku));
+            if (!triggerProduct) continue;
+            if (triggerProduct.id === offerProduct.id) continue;
+
+            const existing = await this.prisma.upsell.findFirst({
+              where: { storeId, triggerProductId: triggerProduct.id },
+            });
+
+            if (existing) {
+              await this.prisma.upsellItem.upsert({
+                where: {
+                  upsellId_productId: {
+                    upsellId: existing.id,
+                    productId: offerProduct.id,
+                  },
+                },
+                create: {
+                  upsellId: existing.id,
+                  productId: offerProduct.id,
+                  price: specialPrice,
+                },
+                update: { price: specialPrice },
+              });
+            } else {
+              await this.prisma.upsell.create({
+                data: {
+                  storeId,
+                  name: `Converty — ${u.name ?? triggerProduct.name}`,
+                  triggerProductId: triggerProduct.id,
+                  items: {
+                    create: [{ productId: offerProduct.id, price: specialPrice }],
+                  },
+                },
+              });
+            }
+
+            created++;
+            details.push({
+              trigger: triggerProduct.name,
+              offer: offerProduct.name,
+              price: specialPrice,
+            });
+          }
+        }
+      }
+
+      return { ok: true, created, details };
+    } catch (e: any) {
+      return { ok: false, error: e?.message ?? 'Erreur reseau' };
+    }
+  }
 }

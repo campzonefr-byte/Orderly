@@ -4,11 +4,15 @@ import {
   } from '@nestjs/common';
   import { ProductsService } from './products.service';
   import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+  import { EasySellSyncService } from './easysell-sync.service';
   
   @UseGuards(JwtAuthGuard)
   @Controller('products')
   export class ProductsController {
-    constructor(private products: ProductsService) {}
+    constructor(
+      private products: ProductsService,
+      private easysellSync: EasySellSyncService,
+    ) {}
   
     @Get()
     list(@Query('storeIds') storeIds?: string) {
@@ -80,6 +84,10 @@ import {
   @Post('sync-easysell-bumps/:storeId')
   syncBumps(@Param('storeId') storeId: string) {
     return this.products.syncEasySellBumps(storeId);
+  }
+  @Post('sync-easysell-all')
+  syncAll(@Body() body: { storeId?: string }) {
+    return this.easysellSync.runNow(body?.storeId);
   }
     @Get(':id')
     getOne(@Param('id') id: string) {
