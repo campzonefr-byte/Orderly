@@ -1352,10 +1352,7 @@ function OrderModal({
                       onChange={setCallNote}
                       placeholder="ex: rappeler demain (@ pour mentionner)"
                     />
-                  </div> <div>
-                    <label className="mb-1 block text-xs font-medium text-muted">Note</label>
-                    <Input value={callNote} onChange={(e) => setCallNote(e.target.value)} placeholder="ex: rappeler demain matin" />
-                  </div>
+                  </div> 
                 </div>
 
                 {order.scheduledDeliveryDate && (
