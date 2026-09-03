@@ -1188,7 +1188,12 @@ function OrderModal({
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-muted">Note interne</label>
+                <label className="mb-1 block text-xs font-medium text-muted">
+                    Note livreur
+                    <span className="ml-1 text-[10px] font-normal text-muted-light">
+                      apparaît sur le bordereau
+                    </span>
+                  </label>
                   <MentionInput
                     value={internalNote}
                     onChange={setInternalNote}
@@ -1346,7 +1351,12 @@ function OrderModal({
                     </div>
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-muted">Note</label>
+                  <label className="mb-1 block text-xs font-medium text-muted">
+                      Note équipe
+                      <span className="ml-1 text-[10px] font-normal text-muted-light">
+                        interne, @ pour mentionner
+                      </span>
+                    </label>
                     <MentionInput
                       value={callNote}
                       onChange={setCallNote}
