@@ -46,7 +46,17 @@ export class StoresService {
       data: { isActive: !store.isActive },
     });
   }
+  async updateCredentials(id: string, credentials: any) {
+    const store = await this.prisma.store.findUnique({ where: { id } });
+    const existing = (store?.credentials as any) ?? {};
 
+    return this.prisma.store.update({
+      where: { id },
+      data: {
+        credentials: { ...existing, ...credentials },
+      },
+    });
+  }
   async remove(id: string, force = false) {
     if (!force) {
       const count = await this.prisma.order.count({ where: { storeId: id } });
