@@ -365,7 +365,7 @@ function OffersContent() {
           } catch {}
         })
       );
-      
+      setOffersMap(map);
     } catch {
       setProducts([]);
     } finally {
