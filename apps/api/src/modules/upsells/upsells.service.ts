@@ -101,18 +101,23 @@ export class UpsellsService {
 
   // Given the SKUs in a cart, return special prices that apply
   async computeUpsells(storeId: string, skus: string[], orderDate?: Date) {
-    if (skus.length === 0) return { prices: {} };
+    if (skus.length < 2) return { prices: {} };
 
     const refDate = orderDate ?? new Date();
+
+    // The first SKU is the main product — never gets an upsell price
+    const [mainSku, ...otherSkus] = skus;
 
     const products = await this.prisma.product.findMany({
       where: { storeId, sku: { in: skus } },
       select: { id: true, sku: true },
     });
-    const productIds = products.map((p) => p.id);
+
+    const mainProduct = products.find((p) => p.sku === mainSku);
+    if (!mainProduct) return { prices: {} };
 
     const upsells = await this.prisma.upsell.findMany({
-      where: { storeId, triggerProductId: { in: productIds } },
+      where: { storeId, triggerProductId: mainProduct.id },
       include: { items: { include: { product: { select: { sku: true } } } } },
     });
 
@@ -128,13 +133,14 @@ export class UpsellsService {
     for (const u of validUpsells) {
       for (const item of u.items) {
         const sku = item.product.sku;
-        if (skus.includes(sku)) {
+        // Only products other than the main one
+        if (otherSkus.includes(sku)) {
           prices[sku] = { price: Number(item.price), upsellName: u.name };
         }
       }
     }
 
-    return { prices };
+    return { prices, mainSku };
   }
   async countByStore() {
     const rows = await this.prisma.upsell.groupBy({
