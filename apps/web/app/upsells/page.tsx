@@ -349,13 +349,17 @@ function UpsellsContent() {
     .sort((a, b) => (storeCounts[b.id] ?? 0) - (storeCounts[a.id] ?? 0));
 
     useEffect(() => {
-      if (stores.length > 0) {
-        if (selectedStoreIds.length === 0) setSelectedStoreIds(stores.map((s) => s.id));
-        if (!activeStore && accessibleStores.length > 0) {
-          setActiveStore(accessibleStores[0].id);
-        }
+      if (stores.length > 0 && selectedStoreIds.length === 0) {
+        setSelectedStoreIds(stores.map((s) => s.id));
       }
-    }, [stores, storeCounts]);
+    }, [stores]);
+  
+    // Pick the first store only once, when counts are known
+    useEffect(() => {
+      if (activeStore) return;
+      if (accessibleStores.length === 0) return;
+      setActiveStore(accessibleStores[0].id);
+    }, [accessibleStores.length, Object.keys(storeCounts).length]);
 
   const fetchUpsells = useCallback(async () => {
     if (!activeStore) return;
