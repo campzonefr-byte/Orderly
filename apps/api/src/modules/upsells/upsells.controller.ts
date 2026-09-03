@@ -14,6 +14,10 @@ import {
     list(@Query('storeIds') storeIds?: string) {
       return this.upsells.list(storeIds ? storeIds.split(',') : undefined);
     }
+    @Get('counts')
+    counts() {
+      return this.upsells.countByStore();
+    }
   
     @Post('compute/:storeId')
     compute(

@@ -299,9 +299,10 @@ function UpsellsContent() {
   const [showModal, setShowModal] = useState(false);
   const [editUpsell, setEditUpsell] = useState<any>(null);
   const [syncing, setSyncing] = useState(false);
+  const [activeStore, setActiveStore] = useState<string>("");
 
   async function syncEasySell() {
-    const storeId = selectedStoreIds[0];
+    const storeId = activeStore;
     if (!storeId) return;
 
     const store = stores.find((s) => s.id === storeId);
@@ -341,20 +342,27 @@ function UpsellsContent() {
     }
   }
 
-  const accessibleStores = stores.filter((s) => canAccessStore(s.id));
+  const [storeCounts, setStoreCounts] = useState<Record<string, number>>({});
 
-  useEffect(() => {
-    if (stores.length > 0 && selectedStoreIds.length === 0) {
-      setSelectedStoreIds(stores.map((s) => s.id));
-    }
-  }, [stores]);
+  const accessibleStores = stores
+    .filter((s) => canAccessStore(s.id))
+    .sort((a, b) => (storeCounts[b.id] ?? 0) - (storeCounts[a.id] ?? 0));
+
+    useEffect(() => {
+      if (stores.length > 0) {
+        if (selectedStoreIds.length === 0) setSelectedStoreIds(stores.map((s) => s.id));
+        if (!activeStore && accessibleStores.length > 0) {
+          setActiveStore(accessibleStores[0].id);
+        }
+      }
+    }, [stores, storeCounts]);
 
   const fetchUpsells = useCallback(async () => {
-    if (selectedStoreIds.length === 0) return;
+    if (!activeStore) return;
     setLoading(true);
     try {
       const res = await fetch(
-        `${API}/upsells?storeIds=${selectedStoreIds.join(",")}`,
+        `${API}/upsells?storeIds=${activeStore}`,
         { headers: { Authorization: `Bearer ${getToken()}` } }
       );
       const data = await res.json();
@@ -364,11 +372,20 @@ function UpsellsContent() {
     } finally {
       setLoading(false);
     }
-  }, [selectedStoreIds]);
+  }, [activeStore]);
 
   useEffect(() => {
     fetchUpsells();
   }, [fetchUpsells]);
+
+  useEffect(() => {
+    fetch(`${API}/upsells/counts`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+      .then((r) => r.json())
+      .then((d) => setStoreCounts(d ?? {}))
+      .catch(() => {});
+  }, [upsells]);
 
   async function toggle(u: any) {
     await fetch(`${API}/upsells/${u.id}`, {
@@ -416,7 +433,30 @@ function UpsellsContent() {
             </Button>
           </div>
         </header>
-
+        <div className="flex gap-1 border-b border-border bg-surface px-5 py-2">
+          {accessibleStores.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setActiveStore(s.id)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                activeStore === s.id
+                  ? "bg-primary text-white"
+                  : "text-muted hover:bg-surface-sunken"
+              )}
+            >
+              {s.name}
+              {(storeCounts[s.id] ?? 0) > 0 && (
+                <span className={cn(
+                  "rounded-full px-1.5 py-0.5 text-[10px]",
+                  activeStore === s.id ? "bg-white/25" : "bg-surface-sunken"
+                )}>
+                  {storeCounts[s.id]}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
         <div className="flex-1 overflow-y-auto p-5">
           {loading ? (
             <p className="py-16 text-center text-sm text-muted">Chargement...</p>

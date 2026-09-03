@@ -136,4 +136,11 @@ export class UpsellsService {
 
     return { prices };
   }
+  async countByStore() {
+    const rows = await this.prisma.upsell.groupBy({
+      by: ['storeId'],
+      _count: { id: true },
+    });
+    return Object.fromEntries(rows.map((r) => [r.storeId, r._count.id]));
+  }
 }

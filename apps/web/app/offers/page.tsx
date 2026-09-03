@@ -332,7 +332,11 @@ function OffersContent() {
   const [openProduct, setOpenProduct] = useState<any>(null);
   const [syncing, setSyncing] = useState(false);
 
-  const accessibleStores = stores.filter((s) => canAccessStore(s.id));
+  const [storeOfferCounts, setStoreOfferCounts] = useState<Record<string, number>>({});
+
+  const accessibleStores = stores
+    .filter((s) => canAccessStore(s.id))
+    .sort((a, b) => (storeOfferCounts[b.id] ?? 0) - (storeOfferCounts[a.id] ?? 0));
 
   useEffect(() => {
     if (stores.length > 0) {
@@ -365,7 +369,10 @@ function OffersContent() {
           } catch {}
         })
       );
-      setOffersMap(map);
+      setStoreOfferCounts((prev) => ({
+        ...prev,
+        [activeStore]: Object.keys(map).length,
+      }));
     } catch {
       setProducts([]);
     } finally {
