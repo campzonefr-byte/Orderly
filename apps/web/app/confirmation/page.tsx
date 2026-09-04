@@ -474,13 +474,39 @@ function CancellationModal({
 function DeliveryModal({
   onConfirm,
   onClose,
+  storeId,
 }: {
   onConfirm: (company: string, date?: string) => void;
   onClose: () => void;
+  storeId: string;
 }) {
   const [company, setCompany] = useState("");
   const [date, setDate] = useState("");
   const [isScheduled, setIsScheduled] = useState(false);
+  const [carriers, setCarriers] = useState<string[]>([]);
+  const [loadingCarriers, setLoadingCarriers] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API}/delivery/integrations`, {
+          headers: { Authorization: `Bearer ${getToken()}` },
+        });
+        const data = await res.json();
+        const linked = (Array.isArray(data) ? data : [])
+          .filter((i: any) =>
+            (i.stores ?? []).some((s: any) => s.storeId === storeId)
+          )
+          .map((i: any) => i.name);
+
+        setCarriers(linked.length > 0 ? linked : ["Cosmos"]);
+      } catch {
+        setCarriers(["Cosmos"]);
+      } finally {
+        setLoadingCarriers(false);
+      }
+    })();
+  }, [storeId]);
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-foreground/30 backdrop-blur-[2px]">
@@ -495,7 +521,7 @@ function DeliveryModal({
           <div>
             <label className="mb-2 block text-xs font-medium text-muted">Société de livraison</label>
             <div className="grid grid-cols-2 gap-2">
-              {DELIVERY_COMPANIES.map((c) => (
+              {carriers.map((c) => (
                 <button
                   key={c}
                   onClick={() => setCompany(c)}
@@ -1443,6 +1469,7 @@ function OrderModal({
 
       {showDeliveryModal && (
         <DeliveryModal
+          storeId={order.storeId}
           onClose={() => setShowDeliveryModal(false)}
           onConfirm={(company, date) => {
             setShowDeliveryModal(false);
