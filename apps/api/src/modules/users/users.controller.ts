@@ -42,7 +42,6 @@ export class UsersController {
   }
   @Post('accept-invite')
   @SetMetadata('isPublic', true)
-  @Post('accept-invite')
   acceptInvite(@Body() body: { token: string; password: string; name?: string }) {
     return this.users.acceptInvite(body.token, body.password, body.name);
   }
