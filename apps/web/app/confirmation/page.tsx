@@ -1887,8 +1887,64 @@ function ConfirmationContent() {
             <div className="flex items-center justify-center py-24">
               <p className="text-sm text-muted">Chargement...</p>
             </div>
-          ) : (
-            <table className="w-full border-collapse text-sm">
+                    ) : (
+                      <>
+                      {/* Mobile cards */}
+                      <div className="space-y-2 p-3 md:hidden">
+                        {pageOrders.map((order) => {
+                          const attempts = Array.isArray(order.callAttempts) ? order.callAttempts as CallAttempt[] : [];
+                          const isRefused = attempts.some((a) => a.result === "ANSWERED_REFUSED") || order.orderStatus === "ANNULE";
+                          const isConfirmed = attempts.some((a) => a.result === "ANSWERED_CONFIRMED");
+                          const isAVerifier = order.orderStatus === "A_VERIFIER";
+          
+                          return (
+                            <div
+                              key={order.id}
+                              onClick={() => setActiveOrder(order)}
+                              className={cn(
+                                "rounded-xl border bg-surface p-3 transition-colors active:bg-surface-sunken",
+                                isConfirmed ? "border-status-delivered/40 bg-status-delivered-bg/20" :
+                                isRefused ? "border-status-cancelled/40 bg-status-cancelled-bg/20" :
+                                isAVerifier ? "border-status-cancelled/50 bg-status-cancelled-bg/30" :
+                                "border-border"
+                              )}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="font-mono text-sm font-bold">{order.orderNumber}</p>
+                                  <p className="truncate text-xs text-muted">{order.customerName ?? "—"}</p>
+                                  <p className="font-mono text-[11px] text-muted-light">{order.customerPhone ?? "—"}</p>
+                                </div>
+                                <div className="shrink-0 text-right">
+                                  <p className="font-mono text-base font-bold">
+                                    {Number(order.total).toFixed(0)}
+                                  </p>
+                                  <p className="text-[10px] text-muted">{order.currency}</p>
+                                </div>
+                              </div>
+          
+                              <div className="mt-2 flex items-center justify-between gap-2">
+                                <CallStatusBadge attempts={attempts} />
+                                <span className="text-[10px] text-muted-light">
+                                  {attempts.length > 0 ? `${attempts.length} appel${attempts.length > 1 ? "s" : ""}` : "jamais appelé"}
+                                </span>
+                              </div>
+          
+                              <Button
+                                size="sm"
+                                className="mt-2.5 w-full"
+                                onClick={(e) => { e.stopPropagation(); setActiveOrder(order); }}
+                              >
+                                <Phone className="h-3.5 w-3.5" />
+                                {isConfirmed ? "Voir la commande" : "Confirmer"}
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+          
+                      {/* Desktop table */}
+                      <table className="hidden w-full border-collapse text-sm md:table">
               <thead className="sticky top-0 z-10 bg-surface">
                 <tr className="border-b border-border text-left text-xs font-medium text-muted">
                   <th className="px-4 py-2.5">Commande</th>
@@ -2020,7 +2076,8 @@ function ConfirmationContent() {
                   );
                 })}
               </tbody>
-            </table>
+              </table>
+              </>
           )}
 
           {!loading && pageOrders.length === 0 && (
