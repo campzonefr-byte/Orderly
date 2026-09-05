@@ -368,51 +368,94 @@ function CreateOrderModal({
             )}
 
             <div className="space-y-2">
-              {products.map((p, idx) => (
-                <div key={idx} className="rounded-lg border border-border p-2 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <ProductPicker
-                      value={p.title}
-                      onSelect={(prod, raw) => handleProductSelect(idx, prod, raw)}
-                      products={storeProducts}
-                      loading={loadingProducts}
-                      className="flex-1"
-                    />
-                    {products.length > 1 && (
-                      <button onClick={() => removeProduct(idx)} className="text-muted hover:text-status-cancelled">
-                        <X className="h-3.5 w-3.5" />
-                      </button>
+            {products.map((p, idx) => {
+                const prod = storeProducts.find((sp: any) => sp.sku === p.sku);
+                const unitPrice =
+                  p.sku && upsellPrices[p.sku] ? upsellPrices[p.sku].price : p.price;
+
+                return (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2.5 rounded-lg border border-border px-2.5 py-2"
+                  >
+                    {(prod as any)?.imageUrl ? (
+                      <img
+                        src={(prod as any).imageUrl}
+                        alt=""
+                        className="h-9 w-9 shrink-0 rounded object-cover border border-border"
+                      />
+                    ) : (
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-border bg-surface-sunken">
+                        <Package className="h-3.5 w-3.5 text-muted-light" />
+                      </div>
                     )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[10px] text-muted">Quantité</label>
+
+                    <div className="min-w-0 flex-1">
+                      <ProductPicker
+                        value={p.title}
+                        onSelect={(prod2, raw) => handleProductSelect(idx, prod2, raw)}
+                        products={storeProducts}
+                        loading={loadingProducts}
+                        className="w-full"
+                      />
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-1">
+                      <span className="text-[10px] text-muted">Qté</span>
                       <Input
                         type="number"
                         value={p.quantity}
                         onChange={(e) => updateProduct(idx, { quantity: parseInt(e.target.value) || 1 })}
                         min={1}
-                        className="h-8 text-xs"
+                        className="h-7 w-14 text-xs"
                       />
                     </div>
-                    <div>
-                      <label className="text-[10px] text-muted">Prix unitaire</label>
-                      <Input
-                        type="number"
-                        value={isExchange ? 0 : p.price}
-                        onChange={(e) => updateProduct(idx, { price: parseFloat(e.target.value) || 0 })}
-                        min={0}
-                        step="0.001"
-                        disabled={isExchange}
-                        className="h-8 text-xs disabled:opacity-50"
-                      />
+
+                    <div className="w-20 shrink-0 text-right">
+                      <span className="font-mono text-xs font-semibold">
+                        {(isExchange ? 0 : unitPrice).toFixed(3)}
+                      </span>
+                      {p.sku && upsellPrices[p.sku] && !isExchange && (
+                        <p className="text-[9px] font-medium text-status-delivered">
+                          upsell
+                        </p>
+                      )}
                     </div>
+
+                    {products.length > 1 && (
+                      <button
+                        onClick={() => removeProduct(idx)}
+                        className="shrink-0 text-muted hover:text-status-cancelled"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         
+          {!isExchange && (
+            <div className="space-y-1 px-1">
+              <div className="flex justify-between">
+                <span className="text-xs text-muted">Produits</span>
+                <span className="font-mono text-xs">{productsTotal.toFixed(3)} TND</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-xs text-muted">
+                  Livraison
+                  {shippingFree && (
+                    <span className="ml-1 rounded bg-status-delivered-bg px-1.5 py-0.5 text-[10px] font-medium text-status-delivered">
+                      gratuite
+                    </span>
+                  )}
+                </span>
+                <span className="font-mono text-xs">{shippingCost.toFixed(3)} TND</span>
+              </div>
+            </div>
+          )}
+
           <div className={cn(
             "flex justify-between items-center rounded-lg px-3 py-2",
             isExchange ? "bg-purple-50" : "bg-surface-sunken"
