@@ -527,12 +527,12 @@ function FulfillmentContent() {
 
         {/* Stats */}
         {hasPermission("stats") && (
-        <div className="grid grid-cols-6 gap-3 border-b border-border bg-surface p-4">
-          <StatCard label="Total" value={statsTotal} color="gray" />
-          <StatCard label="En cours" value={enCoursCount} total={statsTotal} color="blue" />
-          <StatCard label="Livrés" value={livrePaidCount} total={statsTotal} color="green" />
-          <StatCard label="Payés" value={paidCount} total={statsTotal} color="green" />
-          <StatCard label="Retours" value={retourCount} total={statsTotal} color="red" />
+        <div className="flex gap-3 overflow-x-auto border-b border-border bg-surface p-4 md:grid md:grid-cols-6 md:overflow-visible">
+          <StatCard className="min-w-[130px] md:min-w-0" label="Total" value={statsTotal} color="gray" />
+          <StatCard className="min-w-[130px] md:min-w-0" label="En cours" value={enCoursCount} total={statsTotal} color="blue" />
+          <StatCard className="min-w-[130px] md:min-w-0" label="Livrés" value={livrePaidCount} total={statsTotal} color="green" />
+          <StatCard className="min-w-[130px] md:min-w-0" label="Payés" value={paidCount} total={statsTotal} color="green" />
+          <StatCard className="min-w-[130px] md:min-w-0" label="Retours" value={retourCount} total={statsTotal} color="red" />
           <div className="rounded-lg bg-primary-soft px-4 py-3">
             <p className="text-[11px] font-medium text-primary">Taux de livraison</p>
             <p className="mt-1 text-2xl font-bold text-primary">{tauxLivraison}%</p>

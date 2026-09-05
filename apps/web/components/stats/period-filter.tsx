@@ -143,12 +143,14 @@ export function StatCard({
   total,
   color,
   suffix,
+  className,
 }: {
   label: string;
   value: number;
   total?: number;
   color: "green" | "red" | "orange" | "blue" | "purple" | "gray";
   suffix?: string;
+  className?: string;
 }) {
   const pct = total && total > 0 ? Math.round((value / total) * 100) : null;
 
@@ -164,7 +166,7 @@ export function StatCard({
   const c = COLORS[color];
 
   return (
-    <div className={cn("rounded-lg px-4 py-3", c.bg)}>
+    <div className={cn("rounded-lg px-4 py-3", c.bg, className)}>
       <p className={cn("text-[11px] font-medium", c.text)}>{label}</p>
       <div className="mt-1 flex items-baseline gap-2">
         <p className={cn("text-2xl font-bold", c.text)}>
