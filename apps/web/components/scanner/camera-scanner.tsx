@@ -39,7 +39,7 @@ export function CameraScanner({
 
         await scanner.start(
           { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 260, height: 160 } },
+          { fps: 15, qrbox: { width: 300, height: 120 }, aspectRatio: 1.777, disableFlip: false },
           (decoded: string) => {
             const now = Date.now();
             // Debounce: same code within 2.5s is ignored
