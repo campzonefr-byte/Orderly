@@ -10,7 +10,7 @@ import { NotificationCenter } from "@/components/layout/notification-center";
 import {
   LayoutGrid, Phone, Package, Truck, RotateCcw, QrCode, Archive,
   Users, MessageSquare, AlertCircle, ShoppingBag, TrendingUp,
-  Megaphone, StoreIcon, Plug, Settings, LogOut, ChevronDown,
+  Megaphone, StoreIcon, Plug, Settings, LogOut, ChevronDown,Menu,
   Check, Circle,Tag,Layers,
 } from "lucide-react";
 
@@ -81,6 +81,7 @@ export function Sidebar({ stores, selectedStoreIds, onChangeSelectedStores }: Si
   const { user, logout, hasPermission } = useAuth();
   const [storeOpen, setStoreOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   // Which group contains the active page
   const activeGroup = NAV_GROUPS.find((g) =>
@@ -104,6 +105,17 @@ export function Sidebar({ stores, selectedStoreIds, onChangeSelectedStores }: Si
       setOpenGroups(next);
       localStorage.setItem("orderly_nav_groups", JSON.stringify(next));
     }
+  }, [pathname]);
+  useEffect(() => {
+    if (activeGroup && !openGroups.includes(activeGroup)) {
+      const next = [...openGroups, activeGroup];
+      setOpenGroups(next);
+      localStorage.setItem("orderly_nav_groups", JSON.stringify(next));
+    }
+  }, [pathname]);
+
+  useEffect(() => {
+    setMobileOpen(false);
   }, [pathname]);
 
   function toggleGroup(key: string) {
@@ -131,7 +143,39 @@ export function Sidebar({ stores, selectedStoreIds, onChangeSelectedStores }: Si
   }
 
   return (
-    <aside className="flex h-screen w-56 shrink-0 flex-col border-r border-border bg-surface">
+    <>
+    {/* Mobile top bar */}
+    <div className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-surface px-4 md:hidden">
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="rounded-md p-2 hover:bg-surface-sunken"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+      <div className="flex items-center gap-2">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-xs font-bold text-white">
+          O
+        </div>
+        <span className="text-sm font-semibold">Orderly</span>
+      </div>
+      <NotificationCenter />
+    </div>
+
+    {/* Backdrop */}
+    {mobileOpen && (
+      <div
+        className="fixed inset-0 z-40 bg-foreground/40 md:hidden"
+        onClick={() => setMobileOpen(false)}
+      />
+    )}
+
+    <aside
+      className={cn(
+        "flex h-screen w-56 shrink-0 flex-col border-r border-border bg-surface",
+        "fixed inset-y-0 left-0 z-50 transition-transform md:static md:translate-x-0",
+        mobileOpen ? "translate-x-0" : "-translate-x-full"
+      )}
+    >
 
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-3 py-3">
@@ -302,6 +346,7 @@ export function Sidebar({ stores, selectedStoreIds, onChangeSelectedStores }: Si
         <p className="truncate text-xs font-medium">{user?.name}</p>
         <p className="truncate text-[11px] text-muted">{user?.email}</p>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

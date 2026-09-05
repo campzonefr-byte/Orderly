@@ -561,7 +561,7 @@ function MarketingContent() {
         onChangeSelectedStores={setSelectedStoreIds}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col pt-14 md:pt-0">
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-5">
           <h1 className="text-base font-semibold">Marketing</h1>
           <div className="flex items-center gap-2">
