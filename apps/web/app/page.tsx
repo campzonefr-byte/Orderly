@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
 import {
   AlertTriangle, Calendar, MessageSquare, Package,
-  ArrowRight, TrendingUp,
+  ArrowRight, TrendingUp,Lock,
 } from "lucide-react";
 import {
   PeriodFilter,
@@ -48,7 +48,7 @@ interface DashboardData {
 
 function OverviewContent() {
   const router = useRouter();
-  const { canAccessStore } = useAuth();
+  const { canAccessStore, hasPermission } = useAuth();
   const { stores } = useStores();
   const [selectedStoreIds, setSelectedStoreIds] = useState<string[]>([]);
   const [period, setPeriod] = useState<Period>(getPeriodRange("30d"));
@@ -143,7 +143,16 @@ function OverviewContent() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          {loading && !data ? (
+        {!hasPermission("stats") ? (
+            <div className="flex flex-col items-center justify-center py-24">
+              <Lock className="h-8 w-8 text-muted-light" />
+              <p className="mt-2 text-sm font-medium">Accès restreint</p>
+              <p className="mt-1 text-center text-xs text-muted max-w-sm">
+                Vous n'avez pas la permission de consulter les statistiques.
+                Contactez votre administrateur.
+              </p>
+            </div>
+          ) : loading && !data ? (
             <p className="py-24 text-center text-sm text-muted">Chargement...</p>
           ) : !data ? (
             <p className="py-24 text-center text-sm text-muted">Aucune donnee</p>
