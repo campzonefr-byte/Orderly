@@ -48,7 +48,11 @@ export class OrdersService {
       this.prisma.order.findMany({
         where,
         include: {
-          lineItems: true,
+          lineItems: {
+            include: {
+              product: { select: { imageUrl: true } },
+            },
+          },
           fulfillments: { orderBy: { createdAt: 'desc' }, take: 1 },
           store: { select: { name: true } },
         },

@@ -1955,8 +1955,6 @@ function ConfirmationContent() {
                   <th className="px-4 py-2.5">Total</th>
                   <th className="px-4 py-2.5">Statut</th>
                   <th className="px-4 py-2.5">Appel</th>
-                  <th className="px-4 py-2.5">Livreur</th>
-                  <th className="px-4 py-2.5">Agent</th>
                   <th className="px-4 py-2.5">Tags</th>
                   <th className="px-4 py-2.5">Actions</th>
                 </tr>
@@ -2002,12 +2000,37 @@ function ConfirmationContent() {
                       <td className="px-4 py-3">
                         <span className="font-mono text-xs">{order.customerPhone ?? "—"}</span>
                       </td>
-                      <td className="px-4 py-3 text-xs text-muted">
-                        {order.lineItems?.map((li) => (
-                          <div key={li.id} className="truncate max-w-[180px]">
-                            {li.title} × {li.quantity}
-                          </div>
-                        ))}
+                                          <td className="px-4 py-3">
+                        <div className="flex gap-1">
+                          {order.lineItems?.slice(0, 4).map((li) => {
+                            const img = (li as any).product?.imageUrl ?? null;
+                            return (
+                              <div key={li.id} className="relative" title={`${li.title} × ${li.quantity}`}>
+                                {img ? (
+                                  <img
+                                    src={img}
+                                    alt=""
+                                    className="h-8 w-8 rounded border border-border object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-8 w-8 items-center justify-center rounded border border-border bg-surface-sunken">
+                                    <Package className="h-3 w-3 text-muted-light" />
+                                  </div>
+                                )}
+                                {li.quantity > 1 && (
+                                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-white">
+                                    {li.quantity}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {(order.lineItems?.length ?? 0) > 4 && (
+                            <span className="flex h-8 w-8 items-center justify-center rounded border border-dashed border-border text-[10px] text-muted">
+                              +{(order.lineItems?.length ?? 0) - 4}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 font-mono text-sm font-medium">
                         {formatMoney(order.total, order.currency)}
@@ -2017,27 +2040,6 @@ function ConfirmationContent() {
                       </td>
                       <td className="px-4 py-3">
                         <CallStatusBadge attempts={attempts} />
-                      </td>
-                      <td className="px-4 py-3 text-xs text-muted">
-                        {order.deliveryCompany ?? "—"}
-                        {order.scheduledDeliveryDate && (
-                          <p className="text-[11px] text-primary">
-                            <Calendar className="inline h-3 w-3 mr-0.5" />
-                            {new Date(order.scheduledDeliveryDate).toLocaleDateString("fr-FR")}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {order.assignedAgentName ? (
-                          <div className="flex items-center gap-1.5">
-                            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-white">
-                              {order.assignedAgentName[0]?.toUpperCase()}
-                            </div>
-                            <span className="text-xs truncate max-w-[80px]">{order.assignedAgentName}</span>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-light">—</span>
-                        )}
                       </td>
                       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex flex-wrap gap-1 max-w-[150px]">
