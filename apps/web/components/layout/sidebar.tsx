@@ -145,7 +145,7 @@ export function Sidebar({ stores, selectedStoreIds, onChangeSelectedStores }: Si
   return (
     <>
     {/* Mobile top bar */}
-    <div className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-surface px-4 md:hidden">
+    <div className="fixed inset-x-0 top-0 z-40 flex h-14 w-full max-w-full items-center justify-between overflow-hidden border-b border-border bg-surface px-3 md:hidden">
       <button
         onClick={() => setMobileOpen(true)}
         className="rounded-md p-2 hover:bg-surface-sunken"

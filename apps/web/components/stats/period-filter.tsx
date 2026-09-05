@@ -81,7 +81,7 @@ export function PeriodFilter({
               onChange(getPeriodRange(k));
             }}
             className={cn(
-              "rounded-md px-2 py-1 text-[11px] font-medium transition-colors md:px-3 md:py-1.5 md:text-xs",
+              "rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors md:px-3 md:py-1.5 md:text-xs",
               period.key === k
                 ? "bg-primary-soft text-primary"
                 : "text-muted hover:bg-surface-sunken hover:text-foreground"
@@ -166,10 +166,10 @@ export function StatCard({
   const c = COLORS[color];
 
   return (
-    <div className={cn("rounded-lg px-2.5 py-2 md:px-4 md:py-3", c.bg, className)}>
+    <div className={cn("rounded-lg px-2.5 py-1.5 md:px-4 md:py-3", c.bg, className)}>
       <p className={cn("text-[10px] font-medium md:text-[11px]", c.text)}>{label}</p>
-      <div className="mt-1 flex items-baseline gap-2">
-        <p className={cn("text-lg font-bold md:text-2xl", c.text)}>
+      <div className="mt-0.5 flex items-baseline gap-1.5 md:mt-1 md:gap-2">
+        <p className={cn("text-base font-bold md:text-2xl", c.text)}>
           {value}{suffix}
         </p>
         {pct !== null && (
@@ -177,7 +177,7 @@ export function StatCard({
         )}
       </div>
       {pct !== null && (
-        <div className="mt-2 h-1.5 w-full rounded-full bg-white/50">
+        <div className="mt-1 h-1 w-full rounded-full bg-white/50 md:mt-2 md:h-1.5">
           <div
             className={cn("h-1.5 rounded-full transition-all", c.bar)}
             style={{ width: `${pct}%` }}

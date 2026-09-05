@@ -233,7 +233,7 @@ function RetoursContent() {
       />
 
       <div className="flex min-w-0 flex-1 flex-col pt-14 md:pt-0">
-        <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-surface px-4 py-2 md:h-14 md:flex-nowrap md:px-5 md:py-0">
+        <header className="flex min-h-14 w-full max-w-full shrink-0 flex-wrap items-center justify-between gap-2 overflow-hidden border-b border-border bg-surface px-3 py-2 md:h-14 md:flex-nowrap md:px-5 md:py-0">
           <h1 className="text-base font-semibold">Retours</h1>
           <Button size="sm" onClick={() => setShowScanner(true)}>
             <QrCode className="h-3.5 w-3.5" />
