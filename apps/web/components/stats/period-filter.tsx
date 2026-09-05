@@ -81,7 +81,7 @@ export function PeriodFilter({
               onChange(getPeriodRange(k));
             }}
             className={cn(
-              "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+              "rounded-md px-2 py-1 text-[11px] font-medium transition-colors md:px-3 md:py-1.5 md:text-xs",
               period.key === k
                 ? "bg-primary-soft text-primary"
                 : "text-muted hover:bg-surface-sunken hover:text-foreground"
@@ -93,7 +93,7 @@ export function PeriodFilter({
         <button
           onClick={() => setShowCustom((v) => !v)}
           className={cn(
-            "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+            "flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors md:gap-1.5 md:px-3 md:py-1.5 md:text-xs",
             period.key === "custom"
               ? "bg-primary-soft text-primary"
               : "text-muted hover:bg-surface-sunken hover:text-foreground"
@@ -166,10 +166,10 @@ export function StatCard({
   const c = COLORS[color];
 
   return (
-    <div className={cn("rounded-lg px-4 py-3", c.bg, className)}>
-      <p className={cn("text-[11px] font-medium", c.text)}>{label}</p>
+    <div className={cn("rounded-lg px-2.5 py-2 md:px-4 md:py-3", c.bg, className)}>
+      <p className={cn("text-[10px] font-medium md:text-[11px]", c.text)}>{label}</p>
       <div className="mt-1 flex items-baseline gap-2">
-        <p className={cn("text-2xl font-bold", c.text)}>
+        <p className={cn("text-lg font-bold md:text-2xl", c.text)}>
           {value}{suffix}
         </p>
         {pct !== null && (

@@ -915,11 +915,11 @@ function PreparationContent() {
         {/* Stats */}
         {hasPermission("stats") && (
         <div className="flex gap-3 overflow-x-auto border-b border-border bg-surface p-4 md:grid md:grid-cols-6 md:overflow-visible">
-          <StatCard className="min-w-[130px] md:min-w-0" label="Total reçues" value={statsTotal} color="gray" />
-          <StatCard className="min-w-[130px] md:min-w-0" label="À préparer" value={aPreparerCount} total={statsTotal} color="blue" />
-          <StatCard className="min-w-[130px] md:min-w-0" label="En préparation" value={enCoursCount} total={statsTotal} color="orange" />
-          <StatCard className="min-w-[130px] md:min-w-0" label="Emballées" value={emballeCount} total={statsTotal} color="green" />
-          <StatCard className="min-w-[130px] md:min-w-0" label="Traitées" value={traiteesCount} total={statsTotal} color="purple" />
+          <StatCard className="min-w-[100px] md:min-w-0" label="Total reçues" value={statsTotal} color="gray" />
+          <StatCard className="min-w-[100px] md:min-w-0" label="À préparer" value={aPreparerCount} total={statsTotal} color="blue" />
+          <StatCard className="min-w-[100px] md:min-w-0" label="En préparation" value={enCoursCount} total={statsTotal} color="orange" />
+          <StatCard className="min-w-[100px] md:min-w-0" label="Emballées" value={emballeCount} total={statsTotal} color="green" />
+          <StatCard className="min-w-[100px] md:min-w-0" label="Traitées" value={traiteesCount} total={statsTotal} color="purple" />
           <div className="rounded-lg bg-primary-soft px-4 py-3">
             <p className="text-[11px] font-medium text-primary">Valeur emballée</p>
             <p className="mt-1 text-2xl font-bold text-primary font-mono">

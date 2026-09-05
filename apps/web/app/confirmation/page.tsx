@@ -1824,11 +1824,11 @@ function ConfirmationContent() {
         {/* Stats */}
         {hasPermission("stats") && (
           <div className="flex gap-3 overflow-x-auto border-b border-border bg-surface p-4 md:grid md:grid-cols-6 md:overflow-visible">
-            <StatCard className="min-w-[130px] md:min-w-0" label="Total" value={statsTotal} color="gray" />
-            <StatCard className="min-w-[130px] md:min-w-0" label="Confirmés" value={confirmedCount} total={statsTotal} color="green" />
-            <StatCard className="min-w-[130px] md:min-w-0" label="Refusés" value={refusedCount} total={statsTotal} color="red" />
-            <StatCard className="min-w-[130px] md:min-w-0" label="En attente" value={pendingCount} total={statsTotal} color="orange" />
-            <StatCard className="min-w-[130px] md:min-w-0" label="À vérifier" value={aVerifierCount} total={statsTotal} color="red" />
+            <StatCard className="min-w-[100px] md:min-w-0" label="Total" value={statsTotal} color="gray" />
+            <StatCard className="min-w-[100px] md:min-w-0" label="Confirmés" value={confirmedCount} total={statsTotal} color="green" />
+            <StatCard className="min-w-[100px] md:min-w-0" label="Refusés" value={refusedCount} total={statsTotal} color="red" />
+            <StatCard className="min-w-[100px] md:min-w-0" label="En attente" value={pendingCount} total={statsTotal} color="orange" />
+            <StatCard className="min-w-[100px] md:min-w-0" label="À vérifier" value={aVerifierCount} total={statsTotal} color="red" />
             <div className="rounded-lg bg-primary-soft px-4 py-3">
               <p className="text-[11px] font-medium text-primary">CA confirmé</p>
               <p className="mt-1 text-2xl font-bold text-primary font-mono">
