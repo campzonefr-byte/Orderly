@@ -1829,9 +1829,9 @@ function ConfirmationContent() {
             <StatCard className="min-w-[100px] md:min-w-0" label="Refusés" value={refusedCount} total={statsTotal} color="red" />
             <StatCard className="min-w-[100px] md:min-w-0" label="En attente" value={pendingCount} total={statsTotal} color="orange" />
             <StatCard className="min-w-[100px] md:min-w-0" label="À vérifier" value={aVerifierCount} total={statsTotal} color="red" />
-            <div className="rounded-lg bg-primary-soft px-4 py-3">
-              <p className="text-[11px] font-medium text-primary">CA confirmé</p>
-              <p className="mt-1 text-2xl font-bold text-primary font-mono">
+            <div className="min-w-[100px] shrink-0 rounded-lg bg-primary-soft px-2.5 py-1.5 md:min-w-0 md:px-4 md:py-3">
+              <p className="text-[10px] font-medium text-primary md:text-[11px]">CA confirmé</p>
+              <p className="mt-0.5 text-base font-bold text-primary font-mono md:mt-1 md:text-2xl">
                 {revenue.toLocaleString("fr-FR", { maximumFractionDigits: 0 })}
               </p>
               <p className="mt-1 text-[10px] text-primary/70">

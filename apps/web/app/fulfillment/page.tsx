@@ -533,8 +533,8 @@ function FulfillmentContent() {
           <StatCard className="min-w-[100px] md:min-w-0" label="Livrés" value={livrePaidCount} total={statsTotal} color="green" />
           <StatCard className="min-w-[100px] md:min-w-0" label="Payés" value={paidCount} total={statsTotal} color="green" />
           <StatCard className="min-w-[100px] md:min-w-0" label="Retours" value={retourCount} total={statsTotal} color="red" />
-          <div className="rounded-lg bg-primary-soft px-4 py-3">
-            <p className="text-[11px] font-medium text-primary">Taux de livraison</p>
+          <div className="min-w-[100px] shrink-0 rounded-lg bg-primary-soft px-2.5 py-1.5 md:min-w-0 md:px-4 md:py-3">
+            <p className="text-[10px] font-medium text-primary md:text-[11px]">Taux de livraison</p>
             <p className="mt-1 text-2xl font-bold text-primary">{tauxLivraison}%</p>
             <div className="mt-2 h-1.5 w-full rounded-full bg-white/50">
               <div
