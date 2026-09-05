@@ -31,6 +31,7 @@ export class AuthService {
         email: user.email,
         role: user.role,
         storeIds: user.storeAccess.map((a) => a.storeId),
+        permissions: user.permissions ?? [],
       },
     };
   }
