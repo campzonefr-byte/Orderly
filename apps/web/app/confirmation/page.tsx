@@ -129,10 +129,72 @@ function CreateOrderModal({
     { title: "", sku: "", quantity: 1, price: 0 },
   ]);
   const [loading, setLoading] = useState(false);
+  const [cityError, setCityError] = useState(false);
+  const [upsellPrices, setUpsellPrices] = useState<Record<string, any>>({});
+  const [shippingCost, setShippingCost] = useState(0);
+  const [shippingFree, setShippingFree] = useState(false);
 
   const { products: storeProducts, loading: loadingProducts } = useStoreProducts(storeId);
 
-  const total = isExchange ? 0 : products.reduce((s, p) => s + p.price * p.quantity, 0);
+  // Apply upsells and quantity offers
+  useEffect(() => {
+    if (isExchange) {
+      setUpsellPrices({});
+      return;
+    }
+    (async () => {
+      const skus = products.map((p) => p.sku).filter(Boolean);
+      if (skus.length < 2) {
+        setUpsellPrices({});
+        return;
+      }
+      try {
+        const res = await fetch(`${API}/upsells/compute/${storeId}`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${getToken()}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ skus }),
+        });
+        const data = await res.json();
+        setUpsellPrices(data.prices ?? {});
+      } catch {
+        setUpsellPrices({});
+      }
+    })();
+  }, [products, storeId, isExchange]);
+
+  const productsTotal = isExchange
+    ? 0
+    : products.reduce((s, p) => {
+        const unit = p.sku && upsellPrices[p.sku] ? upsellPrices[p.sku].price : p.price;
+        return s + unit * p.quantity;
+      }, 0);
+
+  // Shipping from store rules
+  useEffect(() => {
+    if (isExchange || productsTotal <= 0) {
+      setShippingCost(0);
+      setShippingFree(false);
+      return;
+    }
+    (async () => {
+      try {
+        const res = await fetch(
+          `${API}/shipping/calculate/${storeId}?subtotal=${productsTotal}&city=${encodeURIComponent(city)}`,
+          { headers: { Authorization: `Bearer ${getToken()}` } }
+        );
+        const data = await res.json();
+        setShippingCost(data.cost ?? 0);
+        setShippingFree(data.isFree ?? false);
+      } catch {
+        setShippingCost(0);
+      }
+    })();
+  }, [productsTotal, city, storeId, isExchange]);
+
+  const total = isExchange ? 0 : productsTotal + shippingCost;
 
   function updateProduct(idx: number, patch: Partial<typeof products[0]>) {
     setProducts((prev) => prev.map((p, i) => i === idx ? { ...p, ...patch } : p));
@@ -159,6 +221,11 @@ function CreateOrderModal({
   }
 
   async function create() {
+    if (!isValidCity(city)) {
+      setCityError(true);
+      return;
+    }
+    setCityError(false);
     setLoading(true);
     try {
       await fetch(`${API}/orders/manual`, {
@@ -270,7 +337,7 @@ function CreateOrderModal({
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-muted">Ville</label>
-              <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Tunis" />
+              <CityPicker value={city} onChange={setCity} address={address} />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-muted">Adresse</label>
@@ -357,10 +424,22 @@ function CreateOrderModal({
               {total.toFixed(3)} TND
             </span>
           </div>
-        </div>
+          </div>
 
-        <div className="flex gap-2 border-t border-border px-5 py-4">
-          <Button variant="secondary" className="flex-1" onClick={onClose}>Annuler</Button>
+{cityError && (
+  <div className="flex items-start gap-2.5 border-t border-status-cancelled/30 bg-status-cancelled-bg px-5 py-3">
+    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-status-cancelled" />
+    <div className="text-xs text-status-cancelled">
+      <p className="font-semibold">Gouvernorat obligatoire</p>
+      <p className="mt-0.5">
+        Sélectionnez un gouvernorat dans la liste pour créer la commande.
+      </p>
+    </div>
+  </div>
+)}
+
+<div className="flex gap-2 border-t border-border px-5 py-4">
+  <Button variant="secondary" className="flex-1" onClick={onClose}>Annuler</Button>
           <Button
             className={cn("flex-1", isExchange && "bg-purple-600 hover:bg-purple-700")}
             disabled={loading || !canCreate}
