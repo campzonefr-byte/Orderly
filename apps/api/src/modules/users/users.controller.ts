@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Request, SetMetadata } from '@nestjs/common';
 
 @UseGuards(JwtAuthGuard)
 @Controller('users')
@@ -39,7 +40,8 @@ export class UsersController {
   }) {
     return this.users.invite(body);
   }
-
+  @Post('accept-invite')
+  @SetMetadata('isPublic', true)
   @Post('accept-invite')
   acceptInvite(@Body() body: { token: string; password: string; name?: string }) {
     return this.users.acceptInvite(body.token, body.password, body.name);
