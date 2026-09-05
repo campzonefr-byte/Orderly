@@ -248,7 +248,7 @@ function ShippingContent() {
       />
 
       <div className="flex min-w-0 flex-1 flex-col pt-14 md:pt-0">
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-5">
+        <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-surface px-4 py-2 md:h-14 md:flex-nowrap md:px-5 md:py-0">
           <div>
             <h1 className="text-base font-semibold">Règles de livraison</h1>
             <p className="text-xs text-muted">Tarifs et gratuité par magasin</p>
@@ -290,7 +290,7 @@ function ShippingContent() {
                           <p className="text-xs text-muted">{r.store?.name}</p>
                         </div>
                       </div>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 overflow-x-auto">
                         <button
                           onClick={() => { setEditRule(r); setShowModal(true); }}
                           className="rounded-md p-1.5 text-muted hover:bg-surface-sunken"

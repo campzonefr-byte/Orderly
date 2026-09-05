@@ -154,7 +154,7 @@ function AlertsContent() {
       />
 
       <div className="flex min-w-0 flex-1 flex-col pt-14 md:pt-0">
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-5">
+        <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-surface px-4 py-2 md:h-14 md:flex-nowrap md:px-5 md:py-0">
           <h1 className="text-base font-semibold">Stock Alerts</h1>
           <button
             onClick={fetchAllProducts}
@@ -180,12 +180,12 @@ function AlertsContent() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 border-b border-border bg-surface px-5 py-3">
+        <div className="flex flex-col gap-2 border-b border-border bg-surface px-5 py-3 md:flex-row md:items-center md:gap-3">
           <div className="relative w-64">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-light" />
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search SKU or product..." className="pl-8" />
           </div>
-          <div className="flex gap-1">
+          <div className="flex gap-1 overflow-x-auto">
             {FILTER_TABS.map((tab) => (
               <button
                 key={tab.key}

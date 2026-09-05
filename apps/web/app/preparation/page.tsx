@@ -884,7 +884,7 @@ function PreparationContent() {
       />
 
       <div className="flex min-w-0 flex-1 flex-col pt-14 md:pt-0">
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-5">
+        <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-surface px-4 py-2 md:h-14 md:flex-nowrap md:px-5 md:py-0">
           <h1 className="text-base font-semibold">Préparation</h1>
           <div className="flex items-center gap-2">
             {selectedIds.size > 0 && (
@@ -944,7 +944,7 @@ function PreparationContent() {
               />
               </div>
               <AdvancedFilters filters={advFilters} onChange={setAdvFilters} orders={orders} />
-              <div className="flex gap-1">
+              <div className="flex gap-1 overflow-x-auto">
                 {[
                   { key: "all", label: "Tous", count: orders.length },
                   { key: "A_PREPARER", label: "À préparer", count: counts["A_PREPARER"] ?? 0 },

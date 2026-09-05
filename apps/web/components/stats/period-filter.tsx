@@ -71,7 +71,7 @@ export function PeriodFilter({
   const KEYS: PeriodKey[] = ["today", "7d", "30d", "all"];
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible">
       <div className="flex items-center gap-1">
         {KEYS.map((k) => (
           <button
