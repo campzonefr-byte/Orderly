@@ -508,7 +508,7 @@ function FulfillmentContent() {
         onChangeSelectedStores={setSelectedStoreIds}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col pt-14 md:pt-0">
+      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden pt-14 md:pt-0">
         <header className="flex min-h-14 w-full max-w-full shrink-0 flex-wrap items-center justify-between gap-2 overflow-hidden border-b border-border bg-surface px-3 py-2 md:h-14 md:flex-nowrap md:px-5 md:py-0">
           <h1 className="text-base font-semibold">Livraison</h1>
           <div className="flex items-center gap-2">
@@ -527,13 +527,13 @@ function FulfillmentContent() {
 
         {/* Stats */}
         {hasPermission("stats") && (
-        <div className="flex gap-3 overflow-x-auto border-b border-border bg-surface p-4 md:grid md:grid-cols-6 md:overflow-visible">
-          <StatCard className="min-w-[100px] md:min-w-0" label="Total" value={statsTotal} color="gray" />
-          <StatCard className="min-w-[100px] md:min-w-0" label="En cours" value={enCoursCount} total={statsTotal} color="blue" />
-          <StatCard className="min-w-[100px] md:min-w-0" label="Livrés" value={livrePaidCount} total={statsTotal} color="green" />
-          <StatCard className="min-w-[100px] md:min-w-0" label="Payés" value={paidCount} total={statsTotal} color="green" />
-          <StatCard className="min-w-[100px] md:min-w-0" label="Retours" value={retourCount} total={statsTotal} color="red" />
-          <div className="min-w-[100px] shrink-0 rounded-lg bg-primary-soft px-2.5 py-1.5 md:min-w-0 md:px-4 md:py-3">
+        <div className="grid grid-cols-3 gap-1.5 border-b border-border bg-surface p-2 md:grid-cols-6 md:gap-3 md:p-4">
+          <StatCard className="" label="Total" value={statsTotal} color="gray" />
+          <StatCard className="" label="En cours" value={enCoursCount} total={statsTotal} color="blue" />
+          <StatCard className="" label="Livrés" value={livrePaidCount} total={statsTotal} color="green" />
+          <StatCard className="" label="Payés" value={paidCount} total={statsTotal} color="green" />
+          <StatCard className="" label="Retours" value={retourCount} total={statsTotal} color="red" />
+          <div className="rounded-lg bg-primary-soft px-2 py-1.5 md:px-4 md:py-3">
             <p className="text-[10px] font-medium text-primary md:text-[11px]">Taux de livraison</p>
             <p className="mt-1 text-2xl font-bold text-primary">{tauxLivraison}%</p>
             <div className="mt-2 h-1.5 w-full rounded-full bg-white/50">

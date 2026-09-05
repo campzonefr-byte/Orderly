@@ -1795,7 +1795,7 @@ function ConfirmationContent() {
         onChangeSelectedStores={setSelectedStoreIds}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col pt-14 md:pt-0">
+      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden pt-14 md:pt-0">
         <header className="flex min-h-14 w-full max-w-full shrink-0 flex-wrap items-center justify-between gap-2 overflow-hidden border-b border-border bg-surface px-3 py-2 md:h-14 md:flex-nowrap md:px-5 md:py-0">
           <h1 className="text-base font-semibold">Confirmation</h1>
           <div className="flex items-center gap-2">
@@ -1823,13 +1823,13 @@ function ConfirmationContent() {
 
         {/* Stats */}
         {hasPermission("stats") && (
-          <div className="flex gap-3 overflow-x-auto border-b border-border bg-surface p-4 md:grid md:grid-cols-6 md:overflow-visible">
-            <StatCard className="min-w-[100px] md:min-w-0" label="Total" value={statsTotal} color="gray" />
-            <StatCard className="min-w-[100px] md:min-w-0" label="Confirmés" value={confirmedCount} total={statsTotal} color="green" />
-            <StatCard className="min-w-[100px] md:min-w-0" label="Refusés" value={refusedCount} total={statsTotal} color="red" />
-            <StatCard className="min-w-[100px] md:min-w-0" label="En attente" value={pendingCount} total={statsTotal} color="orange" />
-            <StatCard className="min-w-[100px] md:min-w-0" label="À vérifier" value={aVerifierCount} total={statsTotal} color="red" />
-            <div className="min-w-[100px] shrink-0 rounded-lg bg-primary-soft px-2.5 py-1.5 md:min-w-0 md:px-4 md:py-3">
+          <div className="grid grid-cols-3 gap-1.5 border-b border-border bg-surface p-2 md:grid-cols-6 md:gap-3 md:p-4">
+            <StatCard className="" label="Total" value={statsTotal} color="gray" />
+            <StatCard className="" label="Confirmés" value={confirmedCount} total={statsTotal} color="green" />
+            <StatCard className="" label="Refusés" value={refusedCount} total={statsTotal} color="red" />
+            <StatCard className="" label="En attente" value={pendingCount} total={statsTotal} color="orange" />
+            <StatCard className="" label="À vérifier" value={aVerifierCount} total={statsTotal} color="red" />
+            <div className="rounded-lg bg-primary-soft px-2 py-1.5 md:px-4 md:py-3">
               <p className="text-[10px] font-medium text-primary md:text-[11px]">CA confirmé</p>
               <p className="mt-0.5 text-base font-bold text-primary font-mono md:mt-1 md:text-2xl">
                 {revenue.toLocaleString("fr-FR", { maximumFractionDigits: 0 })}
@@ -1866,7 +1866,7 @@ function ConfirmationContent() {
                 key={tab.key}
                 onClick={() => { setFilter(tab.key as any); setPage(1); }}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  "flex shrink-0 items-center gap-1 rounded px-2 py-1 text-[10px] font-medium transition-colors md:gap-1.5 md:rounded-md md:px-3 md:py-1.5 md:text-xs",
                   filter === tab.key ? "bg-primary-soft text-primary" : "text-muted hover:bg-surface-sunken"
                 )}
               >

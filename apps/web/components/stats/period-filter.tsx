@@ -71,7 +71,7 @@ export function PeriodFilter({
   const KEYS: PeriodKey[] = ["today", "7d", "30d", "all"];
 
   return (
-    <div className="flex items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible">
+    <div className="flex w-full max-w-full flex-wrap items-center gap-1 md:gap-2">
       <div className="flex items-center gap-1">
         {KEYS.map((k) => (
           <button
@@ -81,7 +81,7 @@ export function PeriodFilter({
               onChange(getPeriodRange(k));
             }}
             className={cn(
-              "rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors md:px-3 md:py-1.5 md:text-xs",
+              "rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors md:px-3 md:py-1.5 md:text-xs",
               period.key === k
                 ? "bg-primary-soft text-primary"
                 : "text-muted hover:bg-surface-sunken hover:text-foreground"
@@ -93,7 +93,7 @@ export function PeriodFilter({
         <button
           onClick={() => setShowCustom((v) => !v)}
           className={cn(
-            "flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors md:gap-1.5 md:px-3 md:py-1.5 md:text-xs",
+            "flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors md:gap-1.5 md:px-3 md:py-1.5 md:text-xs",
             period.key === "custom"
               ? "bg-primary-soft text-primary"
               : "text-muted hover:bg-surface-sunken hover:text-foreground"
@@ -166,14 +166,14 @@ export function StatCard({
   const c = COLORS[color];
 
   return (
-    <div className={cn("rounded-lg px-2.5 py-1.5 md:px-4 md:py-3", c.bg, className)}>
-      <p className={cn("text-[10px] font-medium md:text-[11px]", c.text)}>{label}</p>
+    <div className={cn("rounded-lg px-2 py-1.5 md:px-4 md:py-3", c.bg, className)}>
+      <p className={cn("truncate text-[9px] font-medium leading-tight md:text-[11px]", c.text)}>{label}</p>
       <div className="mt-0.5 flex items-baseline gap-1.5 md:mt-1 md:gap-2">
-        <p className={cn("text-base font-bold md:text-2xl", c.text)}>
+        <p className={cn("text-sm font-bold leading-tight md:text-2xl", c.text)}>
           {value}{suffix}
         </p>
         {pct !== null && (
-          <p className={cn("text-sm font-semibold", c.text)}>{pct}%</p>
+          <p className={cn("text-[10px] font-semibold md:text-sm", c.text)}>{pct}%</p>
         )}
       </div>
       {pct !== null && (

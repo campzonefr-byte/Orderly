@@ -327,7 +327,7 @@ function ClientsContent() {
         onChangeSelectedStores={setSelectedStoreIds}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col pt-14 md:pt-0">
+      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden pt-14 md:pt-0">
         <header className="flex min-h-14 w-full max-w-full shrink-0 flex-wrap items-center justify-between gap-2 overflow-hidden border-b border-border bg-surface px-3 py-2 md:h-14 md:flex-nowrap md:px-5 md:py-0">
           <h1 className="text-base font-semibold">Clients</h1>
           <p className="text-xs text-muted">{customers.length} clients</p>
@@ -375,7 +375,7 @@ function ClientsContent() {
                 key={s.key}
                 onClick={() => setSortBy(s.key as any)}
                 className={cn(
-                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  "shrink-0 rounded px-2 py-1 text-[10px] font-medium transition-colors md:rounded-md md:px-3 md:py-1.5 md:text-xs",
                   sortBy === s.key ? "bg-primary-soft text-primary" : "text-muted hover:bg-surface-sunken"
                 )}
               >
