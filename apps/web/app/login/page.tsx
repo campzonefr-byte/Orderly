@@ -14,7 +14,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user) router.push("/orders");
+    if (user) router.push("/confirmation");
   }, [user]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -25,7 +25,7 @@ export default function LoginPage() {
       setError(result.error ?? "Login failed.");
       return;
     }
-    router.push("/orders");
+    router.push("/confirmation");
   }
 
   return (
