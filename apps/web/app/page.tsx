@@ -160,7 +160,7 @@ function OverviewContent() {
             <>
               {/* Alerts */}
               {alertItems.length > 0 && (
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                   {alertItems.map((a) => {
                     const Icon = a.icon;
                     return (
@@ -185,7 +185,7 @@ function OverviewContent() {
               )}
 
               {/* Revenue row */}
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                 <KpiCard
                   label="CA encaisse"
                   value={money(k.revenue)}
@@ -217,7 +217,7 @@ function OverviewContent() {
               </div>
 
               {/* Rates row */}
-              <div className="grid grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
                 <KpiCard label="Total commandes" value={k.total} tone="gray" />
                 <KpiCard label="En attente" value={k.pending} tone="orange" />
                 <KpiCard label="En cours" value={k.inProgress} tone="blue" />
@@ -264,7 +264,7 @@ function OverviewContent() {
               </div>
 
               {/* Two columns */}
-              <div className="grid grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                 <div className="rounded-xl border border-border bg-surface p-5">
                   <h2 className="mb-4 text-sm font-semibold">Repartition par statut</h2>
                   <StatusBars counts={data.statusCounts} total={k.total} />
@@ -280,7 +280,7 @@ function OverviewContent() {
               </div>
 
               {/* Products + stores */}
-              <div className="grid grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
                 <div className="col-span-2 rounded-xl border border-border bg-surface p-5">
                   <div className="mb-4 flex items-center justify-between">
                     <h2 className="text-sm font-semibold">Top produits</h2>
