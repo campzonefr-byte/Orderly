@@ -663,7 +663,7 @@ function OrderDetailModal({
 function PreparationContent() {
 
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
-  const { canAccessStore } = useAuth();
+  const { canAccessStore, hasPermission } = useAuth();
   const { stores } = useStores();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -913,6 +913,7 @@ function PreparationContent() {
           <PeriodFilter period={period} onChange={setPeriod} />
         </div>
         {/* Stats */}
+        {hasPermission("stats") && (
         <div className="grid grid-cols-6 gap-3 border-b border-border bg-surface p-4">
           <StatCard label="Total reçues" value={statsTotal} color="gray" />
           <StatCard label="À préparer" value={aPreparerCount} total={statsTotal} color="blue" />
@@ -929,7 +930,7 @@ function PreparationContent() {
             </p>
           </div>
         </div>
-
+        )}
        {/* Filters */}
        <div className="border-b border-border bg-surface px-5 py-3 space-y-2">
        <div className="flex items-center gap-3">

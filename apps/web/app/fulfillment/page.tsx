@@ -369,7 +369,7 @@ const DELIVERY_STATUS_KEYS: OrderStatus[] = [
 ];
 
 function FulfillmentContent() {
-  const { canAccessStore } = useAuth();
+  const { canAccessStore, hasPermission } = useAuth();
   const { stores } = useStores();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -526,6 +526,7 @@ function FulfillmentContent() {
         </div>
 
         {/* Stats */}
+        {hasPermission("stats") && (
         <div className="grid grid-cols-6 gap-3 border-b border-border bg-surface p-4">
           <StatCard label="Total" value={statsTotal} color="gray" />
           <StatCard label="En cours" value={enCoursCount} total={statsTotal} color="blue" />
@@ -546,7 +547,7 @@ function FulfillmentContent() {
             </p>
           </div>
         </div>
-
+        )}
         {/* Revenue row */}
         <div className="grid grid-cols-3 gap-3 border-b border-border bg-surface px-5 pb-4">
           <div className="rounded-lg bg-status-delivered-bg px-4 py-3">

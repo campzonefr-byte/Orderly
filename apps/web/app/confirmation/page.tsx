@@ -1606,7 +1606,7 @@ function OrderModal({
 const PAGE_SIZE = 25;
 
 function ConfirmationContent() {
-  const { canAccessStore } = useAuth();
+  const { canAccessStore, hasPermission } = useAuth();
   const { stores } = useStores();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1822,22 +1822,24 @@ function ConfirmationContent() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-6 gap-3 border-b border-border bg-surface p-4">
-          <StatCard label="Total" value={statsTotal} color="gray" />
-          <StatCard label="Confirmés" value={confirmedCount} total={statsTotal} color="green" />
-          <StatCard label="Refusés" value={refusedCount} total={statsTotal} color="red" />
-          <StatCard label="En attente" value={pendingCount} total={statsTotal} color="orange" />
-          <StatCard label="À vérifier" value={aVerifierCount} total={statsTotal} color="red" />
-          <div className="rounded-lg bg-primary-soft px-4 py-3">
-            <p className="text-[11px] font-medium text-primary">CA confirmé</p>
-            <p className="mt-1 text-2xl font-bold text-primary font-mono">
-              {revenue.toLocaleString("fr-FR", { maximumFractionDigits: 0 })}
-            </p>
-            <p className="mt-1 text-[10px] text-primary/70">
-              Moy. {avgAttempts} tentative{Number(avgAttempts) > 1 ? "s" : ""}/commande
-            </p>
+        {hasPermission("stats") && (
+          <div className="grid grid-cols-6 gap-3 border-b border-border bg-surface p-4">
+            <StatCard label="Total" value={statsTotal} color="gray" />
+            <StatCard label="Confirmés" value={confirmedCount} total={statsTotal} color="green" />
+            <StatCard label="Refusés" value={refusedCount} total={statsTotal} color="red" />
+            <StatCard label="En attente" value={pendingCount} total={statsTotal} color="orange" />
+            <StatCard label="À vérifier" value={aVerifierCount} total={statsTotal} color="red" />
+            <div className="rounded-lg bg-primary-soft px-4 py-3">
+              <p className="text-[11px] font-medium text-primary">CA confirmé</p>
+              <p className="mt-1 text-2xl font-bold text-primary font-mono">
+                {revenue.toLocaleString("fr-FR", { maximumFractionDigits: 0 })}
+              </p>
+              <p className="mt-1 text-[10px] text-primary/70">
+                Moy. {avgAttempts} tentative{Number(avgAttempts) > 1 ? "s" : ""}/commande
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
        {/* Filters */}
        <div className="border-b border-border bg-surface px-5 py-3 space-y-2">
